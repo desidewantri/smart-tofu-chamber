@@ -1,0 +1,25 @@
+# Infrastruktur lokal: MongoDB + Mosquitto (MQTT broker).
+# Jalankan dari folder ini:  docker compose up -d
+services:
+  mongo:
+    image: mongo:7
+    container_name: stc-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: stc-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+
+volumes:
+  mongo-data:
+  mosquitto-data:

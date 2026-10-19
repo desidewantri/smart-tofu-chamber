@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# build
+.next/
+out/
+dist/
+
+# env (jangan commit rahasia; .env.example tetap ikut)
+.env
+.env.local
+!.env.example
+
+# logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# PlatformIO
+firmware/.pio/
+firmware/.vscode/
+
+# python (ml-service milik anggota ML)
+__pycache__/
+*.pyc
+.venv/
