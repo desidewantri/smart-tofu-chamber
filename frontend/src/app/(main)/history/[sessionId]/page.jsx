@@ -7,7 +7,7 @@ import { ArrowLeft } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '@/services/api';
 import { usePolling } from '@/lib/hooks';
-import { formatDateTime, formatDurationShort, STATUS_STYLES, NEUTRAL_STYLE } from '@/lib/utils';
+import { formatDateTime, formatDurationShort, formatHoursLeft, STATUS_STYLES, NEUTRAL_STYLE } from '@/lib/utils';
 import { useI18n } from '@/context/I18nContext';
 import { TICK, TOOLTIP_STYLE, xAxisLabel, yAxisLabel } from '@/lib/chart';
 import { StatusBadge } from '@/components/common/StatusBadge';
@@ -115,7 +115,7 @@ export default function SessionDetailPage() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900">{s.sesiCode}</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Chamber CH-{String(s.chamberId).padStart(3, '0')} · {formatDateTime(s.masuk)} → {s.selesai ? formatDateTime(s.selesai) : t('berjalan')}
+            Chamber {s.chamberId} · {formatDateTime(s.masuk)} → {s.selesai ? formatDateTime(s.selesai) : t('berjalan')}
           </p>
         </div>
         {s.status === 'aktif' ? <StatusBadge status="__run">Berjalan</StatusBadge> : <StatusBadge status={s.statusAkhir} className="!px-3.5 !py-1.5 !text-sm" />}
@@ -125,7 +125,7 @@ export default function SessionDetailPage() {
         {[
           ['Durasi', formatDurationShort(s.durasiDetik)],
           ['Umur simpan awal (prediksi)', s.shelfLifeMulai != null ? `${s.shelfLifeMulai.toFixed(1)} ${t('jam')}` : '—'],
-          ['Sisa saat keluar', s.sisaAkhirJam != null ? `${s.sisaAkhirJam.toFixed(1)} ${t('jam')}` : '—'],
+          ['Sisa saat keluar', s.sisaAkhirJam != null ? formatHoursLeft(s.sisaAkhirJam * 3600) : '—'],
         ].map(([k, v]) => (
           <div key={k} className="card p-4">
             <p className="text-sm font-semibold text-slate-600">{t(k)}</p>

@@ -9,7 +9,7 @@ export default function LanguageSwitch({ className = '' }) {
   const { lang, setLang, t } = useI18n();
   return (
     <div
-      className={cn('inline-flex items-center gap-1 rounded-xl bg-slate-100 p-1 text-xs font-bold', className)}
+      className={cn('inline-flex items-center gap-1 rounded-xl p-1 text-xs font-bold', /\bbg-/.test(className) ? '' : 'bg-slate-100', className)}
       role="group"
       aria-label={t('Bahasa')}
     >

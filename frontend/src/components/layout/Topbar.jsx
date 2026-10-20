@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { AlertTriangle, Bell, ChevronDown, Info, LogOut, Menu, Settings, XOctagon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { NAV } from '@/components/layout/Sidebar';
 import { useI18n } from '@/context/I18nContext';
 import LanguageSwitch from '@/components/common/LanguageSwitch';
 import { usePolling } from '@/lib/hooks';
@@ -48,22 +49,30 @@ export default function Topbar({ onMenu }) {
 
   const { data: notes } = usePolling(() => api.getNotifications(), 30000, []);
   const key = Object.keys(TITLES).find((k) => pathname === k || pathname.startsWith(`${k}/`));
-  const [title, subtitle] = TITLES[key] || ['Smart Tofu Chamber', ''];
+  const [title, subtitle] = TITLES[key] || ['TOSCHA', ''];
+  const Icon = NAV.find((n) => n.href === key)?.icon;
   const count = notes?.length || 0;
 
   return (
-    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200/70 bg-white/85 px-4 py-4 backdrop-blur sm:px-8">
+    <header className="sticky top-0 z-20 flex items-center gap-3 bg-[#eef9f6]/80 px-4 py-3 backdrop-blur sm:px-7 [@media(max-height:700px)]:py-2">
       <button onClick={onMenu} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden" aria-label={t('Buka menu')}>
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="min-w-0 flex-1 lg:text-center">
-        <h1 className="truncate text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">{t(title)}</h1>
-        <p className="hidden truncate text-sm text-slate-500 sm:block lg:text-base">{t(subtitle)}</p>
+      <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4 lg:justify-center">
+        {Icon && (
+          <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-[0_8px_18px_rgba(15,118,110,0.28)] sm:flex">
+            <Icon className="h-5 w-5" />
+          </span>
+        )}
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-extrabold leading-tight tracking-tight text-brand-900 lg:text-2xl">{t(title)}</h1>
+          <p className="hidden truncate text-[13px] text-slate-500 sm:block">{t(subtitle)}</p>
+        </div>
       </div>
 
       <div className="flex items-center gap-1.5">
-        <LanguageSwitch className="hidden sm:inline-flex" />
+        <LanguageSwitch className="hidden bg-white shadow-sm sm:inline-flex" />
         {/* Notifikasi */}
         <div className="relative" ref={bellRef}>
           <button

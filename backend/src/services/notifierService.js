@@ -16,10 +16,9 @@ const { sendWhatsApp, isConfigured } = require('./whatsappService');
 const fmt = (n, d = 1) => (n === null || n === undefined ? '-' : Number(n).toFixed(d).replace('.', ','));
 
 function formatRemaining(sec) {
-  const s = Math.max(0, Math.round(sec || 0));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  return `${h} jam ${m} menit`;
+  // Jam saja, dibulatkan ke bawah: prediksi tidak setepat menit.
+  const h = Math.floor(Math.max(0, sec || 0) / 3600);
+  return h < 1 ? 'kurang dari 1 jam' : `±${h} jam`;
 }
 
 /** Susun isi pesan. kind: 'segeraJual' | 'tidakLayak' | 'offline' */
@@ -30,13 +29,13 @@ function buildMessage({ kind, chamberName, sesiCode, sisaDetik, reading, zones }
   const lines = { segeraJual: [], tidakLayak: [], offline: [] };
   lines.segeraJual = [
     `⚠️ *${chamberName}* (ID sesi ${sesiCode}) sekarang *Segera Jual*.`,
-    `Sisa umur tahu ±${formatRemaining(sisaDetik)} (di bawah ${zones.segarHours} jam).`,
+    `Perkiraan sisa umur tahu ${formatRemaining(sisaDetik)} (di bawah ${zones.segarHours} jam).`,
     sensor,
     'Saran: jual atau olah tahu di chamber ini secepatnya.',
   ];
   lines.tidakLayak = [
     `⛔ *${chamberName}* (ID sesi ${sesiCode}) sekarang *Tidak Layak Jual*.`,
-    `Sisa umur tahu ±${formatRemaining(sisaDetik)} (di bawah ${zones.rawanHours} jam).`,
+    `Perkiraan sisa umur tahu ${formatRemaining(sisaDetik)} (di bawah ${zones.rawanHours} jam).`,
     sensor,
     'Saran: periksa kondisi tahu sebelum dijual.',
   ];
@@ -44,7 +43,7 @@ function buildMessage({ kind, chamberName, sesiCode, sisaDetik, reading, zones }
     `📡 *${chamberName}* (ID sesi ${sesiCode}) *terputus*.`,
     'Sensor tidak mengirim data. Periksa daya dan koneksi Wi-Fi perangkat.',
   ];
-  return ['*Smart Tofu Chamber*', ...lines[kind].filter(Boolean)].join('\n');
+  return ['*TOSCHA · Tofu Smart Chamber*', ...lines[kind].filter(Boolean)].join('\n');
 }
 
 /** Tandai kejadian secara atomik; true bila kita yang pertama menandai (berhak mengirim). */

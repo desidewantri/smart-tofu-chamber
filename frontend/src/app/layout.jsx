@@ -4,7 +4,7 @@ import { I18nProvider } from '@/context/I18nContext';
 import { ToastProvider } from '@/components/common/Toast';
 
 export const metadata = {
-  title: 'Smart Tofu Chamber',
+  title: 'TOSCHA · Tofu Smart Chamber',
   description: 'Monitoring dan prediksi shelf-life tahu secara real-time',
 };
 

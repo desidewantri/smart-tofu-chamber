@@ -56,7 +56,7 @@ export default function HistoryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">{t('Riwayat Sesi')}</h2>
+        <h2 className="text-2xl font-bold text-brand-900">{t('Riwayat Sesi')}</h2>
         <p className="mt-1 text-sm text-slate-500">{t('Setiap sesi mewakili satu kelompok tahu di dalam chamber.')}</p>
       </div>
 

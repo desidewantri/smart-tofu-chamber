@@ -7,6 +7,7 @@ import { usePolling } from '@/lib/hooks';
 import { formatTime } from '@/lib/utils';
 import ChamberCard from '@/components/dashboard/ChamberCard';
 import IdleChamberCard from '@/components/dashboard/IdleChamberCard';
+import GreetingCard from '@/components/dashboard/GreetingCard';
 import { ErrorState, Loading } from '@/components/common/States';
 
 export default function DashboardPage() {
@@ -24,17 +25,17 @@ export default function DashboardPage() {
   ].sort((x, y) => x.id - y.id);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">{t('Chamber Aktif')}</h2>
-          <p className="mt-0.5 text-sm text-slate-500">
+          <h2 className="text-xl font-bold text-brand-900">{t('Chamber Aktif')}</h2>
+          <p className="text-[13px] text-slate-500 [@media(max-height:700px)]:hidden">
             {t('{n} chamber sedang menyimpan tahu · sensor mengirim data tiap {m} menit', { n: active.length, m: updateIntervalMinutes })}
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500">
           <span>{t('Diperbarui')} {formatTime(fetchedAt)}</span>
-          <button onClick={reload} className="btn-outline !px-3 !py-2" aria-label={t('Muat ulang')}>
+          <button onClick={reload} className="btn-outline !px-3 !py-1.5 !text-[13px]" aria-label={t('Muat ulang')}>
             <RefreshCw className="h-4 w-4" /> {t('Segarkan')}
           </button>
         </div>
@@ -46,7 +47,7 @@ export default function DashboardPage() {
         </p>
       )}
 
-      <div className="grid items-stretch gap-4 lg:grid-cols-2">
+      <div className="grid items-stretch gap-3 lg:grid-cols-2">
         {slots.map((slot) =>
           slot.card ? (
             <ChamberCard
@@ -62,6 +63,8 @@ export default function DashboardPage() {
           )
         )}
       </div>
+
+      <GreetingCard active={active} idle={idle} zones={zones} fetchedAt={fetchedAt} />
     </div>
   );
 }

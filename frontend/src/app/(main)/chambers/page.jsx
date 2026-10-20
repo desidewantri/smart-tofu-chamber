@@ -13,7 +13,7 @@ export default function ChambersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">{t('Daftar Chamber')}</h2>
+        <h2 className="text-2xl font-bold text-brand-900">{t('Daftar Chamber')}</h2>
         <p className="mt-1 text-sm text-slate-500">{t('Sistem memiliki 2 chamber (2 kelompok sensor). Setiap sesi penyimpanan dibedakan oleh ID sesi: CH-001, CH-002, dan seterusnya.')}</p>
       </div>
 

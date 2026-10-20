@@ -147,7 +147,9 @@ test('buildMessage menyusun pesan Segera Jual dengan sisa waktu dan sensor', () 
   assert.match(msg, /Chamber 1/);
   assert.match(msg, /CH-061/);
   assert.match(msg, /Segera Jual/);
-  assert.match(msg, /7 jam 50 menit/);
+  assert.match(msg, /±7 jam/);
+  assert.doesNotMatch(msg, /menit/);
   assert.match(msg, /Suhu 20,1 °C/);
-  assert.equal(formatRemaining(-5), '0 jam 0 menit');
+  assert.equal(formatRemaining(-5), 'kurang dari 1 jam');
+  assert.equal(formatRemaining(6 * 3600 + 59 * 60), '±6 jam');
 });

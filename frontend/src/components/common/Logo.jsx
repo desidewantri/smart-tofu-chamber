@@ -14,12 +14,12 @@ export function LogoMark({ className = 'h-10 w-10', rounded = 'rounded-xl', vari
     >
       <svg viewBox="0 0 48 48" className="h-4/5 w-4/5" fill="none" aria-hidden="true">
         {/* sinyal sensor */}
-        <path d="M13 11a15 15 0 0 1 22 0" stroke={light ? '#16a34a' : '#bbf7d0'} strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M18 15.5a8.5 8.5 0 0 1 12 0" stroke={light ? '#16a34a' : '#dcfce7'} strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M13 11a15 15 0 0 1 22 0" stroke={light ? '#0d9488' : '#99f6e4'} strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M18 15.5a8.5 8.5 0 0 1 12 0" stroke={light ? '#0d9488' : '#ccfbf1'} strokeWidth="2.4" strokeLinecap="round" />
         {/* kubus tahu */}
-        <path d="M24 20 10 27v10l14 7 14-7V27l-14-7Z" fill={light ? '#16a34a' : '#ffffff'} />
-        <path d="M10 27l14 7 14-7M24 34v10" stroke={light ? '#ffffff' : '#16a34a'} strokeWidth="2" strokeLinejoin="round" />
-        <circle cx="24" cy="26.6" r="1.8" fill={light ? '#ffffff' : '#16a34a'} />
+        <path d="M24 20 10 27v10l14 7 14-7V27l-14-7Z" fill={light ? '#0d9488' : '#ffffff'} />
+        <path d="M10 27l14 7 14-7M24 34v10" stroke={light ? '#ffffff' : '#0d9488'} strokeWidth="2" strokeLinejoin="round" />
+        <circle cx="24" cy="26.6" r="1.8" fill={light ? '#ffffff' : '#0d9488'} />
       </svg>
     </span>
   );

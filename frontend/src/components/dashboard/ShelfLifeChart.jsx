@@ -25,13 +25,14 @@ export default function ShelfLifeChart({
   yKey = 'shelfLife',
   color = '#16a34a',
   height = 230,
+  heightClass,
 }) {
   const { t } = useI18n();
   const maxVal = Math.max(0, ...(data || []).map((d) => d[yKey] || 0));
   const yMax = Math.max(Math.ceil((zones.segarHours * 1.25) / 10) * 10, Math.ceil(maxVal / 10) * 10);
 
   return (
-    <div style={{ height }} className="w-full">
+    <div style={heightClass ? undefined : { height }} className={heightClass ? `w-full ${heightClass}` : 'w-full'}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 16, bottom: 22, left: 4 }}>
           <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
@@ -52,7 +53,7 @@ export default function ShelfLifeChart({
             axisLine={false}
             tickLine={false}
             width={56}
-            label={yAxisLabel(t('Sisa umur simpan (jam)'))}
+            label={yAxisLabel(t('Sisa umur (jam)'))}
           />
           <Tooltip
             formatter={(v) => [`${Number(v).toFixed(1)} ${t('jam')}`, t('Sisa umur simpan')]}

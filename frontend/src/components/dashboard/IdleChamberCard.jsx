@@ -16,7 +16,7 @@ export default function IdleChamberCard({ chamber }) {
             <Boxes className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <h2 className="truncate text-base font-bold leading-tight text-slate-900">{chamber.name}</h2>
+            <h2 className="truncate text-base font-bold leading-tight text-brand-900">{chamber.name}</h2>
             <p className="truncate text-xs text-slate-500">{t('Belum ada sesi aktif')}</p>
           </div>
         </div>

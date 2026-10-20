@@ -7,7 +7,7 @@ import { ArrowLeft, Droplets, LineChart, Pencil, Power, Thermometer, Wind } from
 import { api } from '@/services/api';
 import { useI18n } from '@/context/I18nContext';
 import { usePolling } from '@/lib/hooks';
-import { formatDateTime, formatDurationShort, formatRelative } from '@/lib/utils';
+import { formatDateTime, formatDurationShort, formatHoursLeft, formatRelative } from '@/lib/utils';
 import { ConnectionBadge, StatusBadge } from '@/components/common/StatusBadge';
 import { ErrorState, Loading } from '@/components/common/States';
 import SensorBar from '@/components/dashboard/SensorBar';
@@ -94,7 +94,7 @@ export default function ChamberDetailPage() {
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div><dt className="text-slate-500">{t('Tahu masuk')}</dt><dd className="font-medium">{formatDateTime(activeSession.masuk)}</dd></div>
                 <div><dt className="text-slate-500">{t('Berjalan')}</dt><dd className="font-medium">{formatDurationShort(activeSession.durasiDetik)}</dd></div>
-                <div><dt className="text-slate-500">{t('Sisa umur simpan')}</dt><dd className="font-medium">{formatDurationShort(activeSession.sisaDetik)}</dd></div>
+                <div><dt className="text-slate-500">{t('Sisa umur simpan')}</dt><dd className="font-medium">{formatHoursLeft(activeSession.sisaDetik)}</dd></div>
                 <div><dt className="text-slate-500">{t('Jumlah pembacaan')}</dt><dd className="font-medium">{activeSession.readingCount}</dd></div>
               </dl>
               <div className="flex flex-wrap gap-2">

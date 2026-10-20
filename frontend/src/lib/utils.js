@@ -24,6 +24,22 @@ export function formatDurationLong(totalSec) {
   return getLang() === 'en' ? `${h} hr ${m} min` : `${h} jam ${m} menit`;
 }
 
+/**
+ * Sisa umur dalam jam saja (prediksi tidak setepat menit).
+ * Dibulatkan ke BAWAH agar tidak melebih-lebihkan sisa umur dan selalu sejalan dengan status.
+ * 23940 -> "±6 jam"
+ */
+export function hoursLeft(totalSec) {
+  return Math.floor(Math.max(0, totalSec || 0) / 3600);
+}
+export function formatHoursLeft(totalSec) {
+  const en = getLang() === 'en';
+  const h = hoursLeft(totalSec);
+  if ((totalSec || 0) <= 0) return en ? 'Expired' : 'Habis';
+  if (h < 1) return en ? '< 1 hr' : '< 1 jam';
+  return en ? `±${h} hr` : `±${h} jam`;
+}
+
 export function formatDateTime(value) {
   if (!value) return '—';
   const d = new Date(value);
@@ -87,7 +103,7 @@ export const STATUS_STYLES = {
   [STATUS.LAYAK]: {
     badge: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
     dot: 'bg-emerald-500',
-    card: 'border-emerald-200 bg-emerald-50/40',
+    card: 'border-emerald-200 bg-[#f4fcf7]',
     text: 'text-emerald-700',
     soft: 'bg-emerald-50',
     hex: '#16a34a',
@@ -95,7 +111,7 @@ export const STATUS_STYLES = {
   [STATUS.SEGERA]: {
     badge: 'bg-amber-50 text-amber-700 ring-amber-600/20',
     dot: 'bg-amber-500',
-    card: 'border-amber-200 bg-amber-50/50',
+    card: 'border-amber-200 bg-[#fffcf0]',
     text: 'text-amber-700',
     soft: 'bg-amber-50',
     hex: '#d97706',
@@ -103,7 +119,7 @@ export const STATUS_STYLES = {
   [STATUS.TIDAK]: {
     badge: 'bg-red-50 text-red-700 ring-red-600/20',
     dot: 'bg-red-500',
-    card: 'border-red-200 bg-red-50/50',
+    card: 'border-red-200 bg-[#fef6f6]',
     text: 'text-red-700',
     soft: 'bg-red-50',
     hex: '#dc2626',

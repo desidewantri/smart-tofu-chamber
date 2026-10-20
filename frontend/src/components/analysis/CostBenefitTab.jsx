@@ -41,7 +41,7 @@ export default function CostBenefitTab({ chamberId, period }) {
   const counts = Object.entries(data.counts).map(([name, value]) => ({ name, value, fill: STATUS_STYLES[name].hex }));
   const money = [
     { name: 'Tanpa sistem', value: data.revenueWithoutSystem, fill: '#94a3b8' },
-    { name: 'Dengan sistem', value: data.revenueWithSystem, fill: '#16a34a' },
+    { name: 'Dengan sistem', value: data.revenueWithSystem, fill: '#0d9488' },
   ];
   const positive = data.netBenefit >= 0;
 

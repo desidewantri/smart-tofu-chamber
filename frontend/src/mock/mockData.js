@@ -3,7 +3,7 @@
  * Bentuk datanya sengaja sama dengan respons backend asli.
  */
 export const DEFAULT_SETTINGS = {
-  appName: 'Smart Tofu Chamber',
+  appName: 'TOSCHA',
   appDescription: 'Sistem pemantauan dan analitik prediktif untuk memperkirakan umur simpan tahu.',
   updateIntervalMinutes: 5,
   zones: { segarHours: 24, rawanHours: 8 },

@@ -5,7 +5,7 @@ import { Droplets, Info, Thermometer, Wind } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
 import { api } from '@/services/api';
 import { usePolling, useCountdown } from '@/lib/hooks';
-import { classifyShelfLife, cn, formatDurationLong, STATUS_STYLES, NEUTRAL_STYLE } from '@/lib/utils';
+import { classifyShelfLife, cn, formatHoursLeft, STATUS_STYLES, NEUTRAL_STYLE } from '@/lib/utils';
 import { StatusBadge, ZonePill } from '@/components/common/StatusBadge';
 import { EmptyState, ErrorState, Loading } from '@/components/common/States';
 import ShelfLifeChart from '@/components/dashboard/ShelfLifeChart';
@@ -41,7 +41,7 @@ function Body({ d, zones, fetchedAt }) {
         </div>
         <div className="card p-5">
           <p className="text-sm font-semibold text-slate-600">{t('Perkiraan Sisa Umur Simpan')}</p>
-          <p className={cn('mt-2 text-3xl font-bold tabular-nums', style.text)}>{formatDurationLong(seconds ?? 0)}</p>
+          <p className={cn('mt-2 text-3xl font-bold tabular-nums', style.text)}>{formatHoursLeft(seconds ?? 0)}</p>
         </div>
       </div>
 

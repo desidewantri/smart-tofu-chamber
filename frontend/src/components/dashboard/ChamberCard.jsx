@@ -41,15 +41,15 @@ export default function ChamberCard({ card, zones, thresholds, fetchedAt, onChan
   }
 
   return (
-    <article className={cn('flex flex-col gap-3 rounded-2xl border-2 p-4 shadow-card transition', style.card)}>
+    <article className={cn('flex flex-col gap-2.5 rounded-2xl border-2 p-3.5 shadow-card transition', style.card)}>
       {/* Header */}
       <header className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white ring-1 ring-inset ring-slate-200/70', style.text)}>
-            <Boxes className="h-5 w-5" />
+          <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white ring-1 ring-inset ring-slate-200/70', style.text)}>
+            <Boxes className="h-[18px] w-[18px]" />
           </span>
           <div className="min-w-0">
-            <h2 className="truncate text-base font-bold leading-tight text-slate-900">{chamber.name}</h2>
+            <h2 className="truncate text-[15px] font-bold leading-tight text-brand-900">{chamber.name}</h2>
             <p className="truncate text-xs text-slate-500">
               {t('ID Sesi')} {session.sesiCode}
             </p>
@@ -67,16 +67,16 @@ export default function ChamberCard({ card, zones, thresholds, fetchedAt, onChan
       </header>
 
       {/* Hitung mundur + status */}
-      <div className="flex items-center justify-between gap-3 rounded-xl bg-white/80 px-4 py-3 ring-1 ring-inset ring-slate-200/70">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/80 px-3.5 py-2 ring-1 ring-inset ring-slate-200/70">
         <ShelfLifeTimer seconds={seconds} textClass={style.text} />
-        <StatusBadge status={status} className="!px-3.5 !py-1.5 !text-sm" />
+        <StatusBadge status={status} className="!px-3 !py-1 !text-[13px]" />
       </div>
 
       {/* Grafik */}
       <section>
-        <h3 className="mb-1 text-xs font-semibold text-slate-700">{t('Perkiraan Sisa Umur Simpan')}</h3>
+        <h3 className="mb-0.5 text-xs font-semibold text-slate-700 [@media(max-height:700px)]:hidden">{t('Perkiraan Sisa Umur Simpan')}</h3>
         {chart.length > 1 ? (
-          <ShelfLifeChart data={chart} zones={zones} color={style.hex} height={165} />
+          <ShelfLifeChart data={chart} zones={zones} color={style.hex} heightClass="h-[150px] [@media(max-height:700px)]:h-[112px] [@media(min-height:800px)]:h-[175px]" />
         ) : (
           <p className="rounded-xl bg-white/70 py-10 text-center text-sm text-slate-500">{t('Menunggu prediksi pertama…')}</p>
         )}
@@ -84,7 +84,7 @@ export default function ChamberCard({ card, zones, thresholds, fetchedAt, onChan
 
       {/* Sensor */}
       <section>
-        <h3 className="mb-1.5 text-xs font-semibold text-slate-700">{t('Kondisi Sensor Saat Ini')}</h3>
+        <h3 className="mb-1 text-xs font-semibold text-slate-700 [@media(max-height:700px)]:hidden">{t('Kondisi Sensor Saat Ini')}</h3>
         {sensors ? (
           <div className="grid grid-cols-3 gap-2">
             <SensorTile icon={Wind} label="TVOC" reading={sensors.tvoc} limits={thresholds.tvoc} />
@@ -97,7 +97,7 @@ export default function ChamberCard({ card, zones, thresholds, fetchedAt, onChan
       </section>
 
       {/* Tombol */}
-      <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-3">
+      <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-2.5">
         <Link href={`/analysis?chamber=${chamber.chamberId}`} className="btn-outline !px-3 !py-1.5 !text-xs">
           <LineChart className="h-3.5 w-3.5" /> {t('Lihat Analisis')}
         </Link>

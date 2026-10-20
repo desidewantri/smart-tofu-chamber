@@ -186,14 +186,14 @@ export default function GuidePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">{t('Panduan')}</h2>
+        <h2 className="text-2xl font-bold text-brand-900">{t('Panduan')}</h2>
         <p className="mt-1 text-sm text-slate-500">{t('Pelajari istilah di aplikasi ini, lalu ikuti panduan penggunaannya.')}</p>
       </div>
 
       <Tour />
 
       <section>
-        <h2 className="mb-3 text-lg font-bold text-slate-900">{t('Materi dasar')}</h2>
+        <h2 className="mb-3 text-lg font-bold text-brand-900">{t('Materi dasar')}</h2>
         <div className="grid gap-3">
           {TOPICS.map((topic) => (
             <Topic key={topic.title.id} topic={topic} />

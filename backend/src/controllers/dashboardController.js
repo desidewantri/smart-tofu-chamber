@@ -130,7 +130,7 @@ exports.testWhatsApp = asyncHandler(async (req, res) => {
   const settings = await SystemSetting.get();
   const targets = req.body?.target ? [req.body.target] : settings.notifications?.whatsapp?.recipients || [];
   const message = [
-    '*Smart Tofu Chamber*',
+    '*TOSCHA · Tofu Smart Chamber*',
     '✅ Pesan uji berhasil. Notifikasi WhatsApp sudah terhubung.',
     'Anda akan menerima pesan saat chamber masuk status Segera Jual, Tidak Layak Jual, atau terputus.',
   ].join('\n');

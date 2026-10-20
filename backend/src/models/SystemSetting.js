@@ -12,7 +12,7 @@ const limits = (aman, perhatian) => ({
 const settingSchema = new mongoose.Schema(
   {
     key: { type: String, default: 'default', unique: true },
-    appName: { type: String, default: 'Smart Tofu Chamber' },
+    appName: { type: String, default: 'TOSCHA' },
     appDescription: {
       type: String,
       default: 'Sistem pemantauan dan analitik prediktif untuk memperkirakan umur simpan tahu.',

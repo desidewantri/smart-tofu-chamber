@@ -26,9 +26,9 @@ export default function MainLayout({ children }) {
   return (
     <div className="min-h-screen">
       <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
-      <div className="lg:pl-64">
+      <div className="lg:pl-[17rem]">
         <Topbar onMenu={() => setMenuOpen(true)} />
-        <main className="mx-auto w-full max-w-[1400px] px-4 py-4 sm:px-8 sm:py-6">{children}</main>
+        <main className="mx-auto w-full max-w-[1400px] px-4 pb-5 pt-1 sm:px-7 [@media(max-height:700px)]:pb-1">{children}</main>
       </div>
     </div>
   );
