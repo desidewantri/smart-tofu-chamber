@@ -1,27 +1,16 @@
 import { cn } from '@/lib/utils';
 
-/** Logo: kubus tahu dengan gelombang sensor. Gambar asli buatan sendiri. */
-export function LogoMark({ className = 'h-10 w-10', rounded = 'rounded-xl', variant = 'solid' }) {
-  const light = variant === 'light';
+/** Logo TOSCHA: chamber tahu dengan sensor (file gambar di public/icons). */
+export function LogoMark({ className = 'h-10 w-10', rounded = 'rounded-xl' }) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center justify-center shadow-sm',
-        light ? 'bg-white' : 'bg-gradient-to-br from-brand-500 to-brand-700',
-        rounded,
-        className
-      )}
-    >
-      <svg viewBox="0 0 48 48" className="h-4/5 w-4/5" fill="none" aria-hidden="true">
-        {/* sinyal sensor */}
-        <path d="M13 11a15 15 0 0 1 22 0" stroke={light ? '#0d9488' : '#99f6e4'} strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M18 15.5a8.5 8.5 0 0 1 12 0" stroke={light ? '#0d9488' : '#ccfbf1'} strokeWidth="2.4" strokeLinecap="round" />
-        {/* kubus tahu */}
-        <path d="M24 20 10 27v10l14 7 14-7V27l-14-7Z" fill={light ? '#0d9488' : '#ffffff'} />
-        <path d="M10 27l14 7 14-7M24 34v10" stroke={light ? '#ffffff' : '#0d9488'} strokeWidth="2" strokeLinejoin="round" />
-        <circle cx="24" cy="26.6" r="1.8" fill={light ? '#ffffff' : '#0d9488'} />
-      </svg>
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/icons/logo-256.png"
+      alt="TOSCHA"
+      width={256}
+      height={256}
+      className={cn('inline-block shrink-0 object-contain', rounded, className)}
+    />
   );
 }
 

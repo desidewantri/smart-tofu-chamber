@@ -33,7 +33,7 @@ export default function Sidebar({ open, onClose }) {
             <X className="h-5 w-5" />
           </button>
           <Link href="/dashboard" className="flex flex-col items-center gap-2.5 text-center">
-            <LogoMark className="h-16 w-16 shadow-md ring-4 ring-white/10" rounded="rounded-[20px]" />
+            <LogoMark className="h-[72px] w-[72px] drop-shadow-md" rounded="rounded-[18px]" />
             <span className="flex flex-col items-center"><span className="text-xl font-extrabold tracking-[0.12em] text-white">TOSCHA</span><span className="text-[11px] font-medium text-brand-100/80">Tofu Smart Chamber</span></span>
           </Link>
         </div>

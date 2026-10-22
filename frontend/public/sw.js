@@ -5,9 +5,9 @@
  * - Data API (sensor, sesi, prediksi) TIDAK disimpan di cache: data harus selalu terbaru.
  * Naikkan VERSION setiap kali isi file ini diubah.
  */
-const VERSION = 'toscha-v1';
+const VERSION = 'toscha-v2';
 const STATIC_CACHE = `${VERSION}-static`;
-const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/icons/icon-512.png'];
+const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/logo-256.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(STATIC_CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
