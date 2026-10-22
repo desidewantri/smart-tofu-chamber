@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { AlertTriangle, Bell, ChevronDown, Info, LogOut, Menu, Settings, XOctagon } from 'lucide-react';
+import { AlertTriangle, Bell, ChevronDown, Download, Info, LogOut, Menu, Settings, XOctagon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { NAV } from '@/components/layout/Sidebar';
 import { useI18n } from '@/context/I18nContext';
 import LanguageSwitch from '@/components/common/LanguageSwitch';
 import { usePolling } from '@/lib/hooks';
+import { useInstallPrompt } from '@/lib/pwa';
 import { api } from '@/services/api';
 import { cn, formatRelative } from '@/lib/utils';
 
@@ -40,6 +41,7 @@ export default function Topbar({ onMenu }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { t } = useI18n();
+  const pwa = useInstallPrompt();
   const [bellOpen, setBellOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const bellRef = useRef(null);
@@ -132,6 +134,20 @@ export default function Topbar({ onMenu }) {
                 <p className="truncate text-xs text-slate-500">{user?.email}</p>
               </div>
               <div className="border-b border-slate-100 px-4 py-2.5 sm:hidden"><LanguageSwitch /></div>
+              {pwa.canInstall && (
+                <button
+                  onClick={async () => {
+                    setUserOpen(false);
+                    await pwa.install();
+                  }}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-brand-700 hover:bg-brand-50"
+                >
+                  <Download className="h-4 w-4" /> {t('Pasang aplikasi')}
+                </button>
+              )}
+              {!pwa.canInstall && !pwa.installed && pwa.ios && (
+                <p className="px-4 py-2.5 text-xs text-slate-500">{t('Untuk memasang di iPhone: ketuk Bagikan, lalu "Tambah ke Layar Utama".')}</p>
+              )}
               <Link href="/settings" onClick={() => setUserOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                 <Settings className="h-4 w-4" /> {t('Pengaturan')}
               </Link>

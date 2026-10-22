@@ -61,8 +61,8 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
   const time = now.toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <section className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border border-slate-200/70 border-l-[5px] border-l-brand-600 bg-white px-5 py-3 shadow-card">
-      <div className="min-w-0 flex-1">
+    <section className="flex flex-col gap-3 rounded-2xl border border-slate-200/70 border-l-[5px] border-l-brand-600 bg-white px-4 py-3.5 shadow-card sm:flex-row sm:items-center sm:gap-5 sm:px-5 sm:py-3">
+      <div className="w-full min-w-0 sm:w-auto sm:flex-1">
         <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-brand-600">
           {date} · {time}
         </p>
@@ -73,11 +73,11 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
           {summary} {sensor}
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">
-          <Link href="/analysis" className="btn-primary !px-3 !py-1.5 !text-[13px]">
+      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0">
+          <Link href="/analysis" className="btn-primary justify-center !px-3 !py-2 !text-[13px] sm:!py-1.5">
             <LineChart className="h-4 w-4" /> {t('Lihat Analisis')}
           </Link>
-          <Link href="/history" className="btn-outline !px-3 !py-1.5 !text-[13px]">
+          <Link href="/history" className="btn-outline justify-center !px-3 !py-2 !text-[13px] sm:!py-1.5">
             <History className="h-4 w-4" /> {t('Riwayat Sesi')}
           </Link>
       </div>

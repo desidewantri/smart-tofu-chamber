@@ -166,6 +166,8 @@ export const EN = {
   'Semua sensor terhubung.': 'All sensors are connected.',
   'Pengguna': 'User',
   'Sisa umur (jam)': 'Life left (h)',
+  'Pasang aplikasi': 'Install app',
+  'Untuk memasang di iPhone: ketuk Bagikan, lalu "Tambah ke Layar Utama".': 'To install on iPhone: tap Share, then "Add to Home Screen".',
   'Selamat datang kembali': 'Welcome back',
   'Tahu segar, keputusan jual yang tepat waktu.': 'Fresh tofu, well-timed selling decisions.',
   'Sistem pemantauan dan analitik prediktif untuk memperkirakan umur simpan tahu.': 'A monitoring and predictive analytics system for estimating the shelf life of tofu.',

@@ -219,6 +219,13 @@ export const TOPICS = [
 
 export const FAQ = [
   {
+    q: { id: 'Bagaimana memasang TOSCHA di HP seperti aplikasi?', en: 'How do I install TOSCHA on my phone like an app?' },
+    a: {
+      id: 'Android (Chrome): buka TOSCHA, ketuk menu ⋮ lalu "Instal aplikasi" atau "Tambahkan ke layar utama". iPhone (Safari): ketuk tombol Bagikan lalu "Tambah ke Layar Utama". Di laptop (Chrome/Edge): klik ikon pasang di bilah alamat, atau menu akun lalu "Pasang aplikasi".',
+      en: 'Android (Chrome): open TOSCHA, tap the ⋮ menu, then "Install app" or "Add to Home screen". iPhone (Safari): tap Share, then "Add to Home Screen". On a laptop (Chrome/Edge): click the install icon in the address bar, or open the account menu and choose "Install app".',
+    },
+  },
+  {
     q: { id: 'Dasbor kosong, tidak ada kartu chamber.', en: 'The dashboard is empty, no chamber cards.' },
     a: { id: 'Belum ada sesi aktif. Sesi muncul otomatis begitu sensor mengirim data pertama. Pastikan perangkat menyala dan terhubung.', en: 'There is no active session yet. A session appears automatically once the sensor sends its first data. Make sure the device is on and connected.' },
   },
