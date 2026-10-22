@@ -64,9 +64,9 @@ async function request(method, path, { query, body } = {}) {
 
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401 && path !== '/auth/login') {
+    if (res.status === 401 && !PUBLIC_AUTH.includes(path)) {
       tokenStore.clear();
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      if (typeof window !== 'undefined' && !/^\/(login|register)/.test(window.location.pathname)) {
         window.location.href = '/login';
       }
     }
@@ -75,9 +75,14 @@ async function request(method, path, { query, body } = {}) {
   return json;
 }
 
+const PUBLIC_AUTH = ['/auth/login', '/auth/register', '/auth/google', '/auth/config'];
+
 const realApi = {
   // auth
   login: (email, password, remember) => request('POST', '/auth/login', { body: { email, password, remember } }).then((j) => j.data),
+  register: (body) => request('POST', '/auth/register', { body }).then((j) => j.data),
+  googleLogin: (credential) => request('POST', '/auth/google', { body: { credential } }).then((j) => j.data),
+  authConfig: () => request('GET', '/auth/config').then((j) => j.data),
   me: () => request('GET', '/auth/me').then((j) => j.data.user),
   updateProfile: (body) => request('PUT', '/auth/profile', { body }),
   changePassword: (body) => request('PUT', '/auth/password', { body }),

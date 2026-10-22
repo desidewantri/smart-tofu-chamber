@@ -15,7 +15,10 @@ const router = express.Router();
 
 // ---- publik ----
 router.get('/health', dashboard.health(mqttService.status, env));
+router.get('/auth/config', auth.config);
 router.post('/auth/login', auth.login);
+router.post('/auth/register', auth.register);
+router.post('/auth/google', auth.google);
 router.post('/sensor', requireDeviceKey, sensor.ingest); // perangkat / simulator
 
 // ---- butuh login ----

@@ -33,12 +33,27 @@ export function AuthProvider({ children }) {
     return u;
   }, []);
 
+  const register = useCallback(async (body) => {
+    const { token, user: u } = await api.register(body);
+    tokenStore.set(token);
+    setUser(u);
+    return u;
+  }, []);
+
+  const loginWithGoogle = useCallback(async (credential) => {
+    const { token, user: u } = await api.googleLogin(credential);
+    tokenStore.set(token);
+    setUser(u);
+    return u;
+  }, []);
+
   const logout = useCallback(() => {
     tokenStore.clear();
+    if (typeof window !== 'undefined') window.google?.accounts?.id?.disableAutoSelect?.();
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, setUser, ready, login, logout }), [user, ready, login, logout]);
+  const value = useMemo(() => ({ user, setUser, ready, login, register, loginWithGoogle, logout }), [user, ready, login, register, loginWithGoogle, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

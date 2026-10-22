@@ -10,6 +10,13 @@ const S = () => {
   return state;
 };
 
+// Daftar akun demo (akun admin bawaan + akun yang didaftarkan selama halaman terbuka).
+const accounts = () => {
+  if (!S().accounts) S().accounts = [{ user: { ...S().user, hasPassword: true, avatarUrl: null }, password: S().password }];
+  return S().accounts;
+};
+const me = () => S().current || accounts()[0];
+
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const round = (x, d = 2) => Math.round(x * 10 ** d) / 10 ** d;
@@ -147,29 +154,66 @@ const seasonOf = (m) => ([10, 11, 12, 1, 2, 3].includes(m) ? 'hujan' : 'kemarau'
 
 /* ---------- API ---------- */
 export const mockApi = {
+  async authConfig() {
+    return { allowRegistration: true, googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || null };
+  },
   async login(email, password) {
     await delay(300);
-    if (String(email).toLowerCase() !== S().user.email || password !== S().password) {
-      throw fail('Email atau kata sandi salah', 401);
+    const acc = accounts().find((a) => a.user.email === String(email).toLowerCase().trim());
+    if (acc && acc.password === null) throw fail('Akun ini belum punya kata sandi. Masuk dengan Google, lalu buat kata sandi di Pengaturan > Akun.', 401);
+    if (!acc || password !== acc.password) throw fail('Email atau kata sandi salah', 401);
+    S().current = acc;
+    return { token: 'mock-token', user: clone(acc.user) };
+  },
+  async register({ name, email, password }) {
+    await delay(300);
+    const n = String(name || '').trim();
+    const e = String(email || '').toLowerCase().trim();
+    if (n.length < 2) throw fail('Nama minimal 2 karakter');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) throw fail('Format email tidak valid');
+    if (String(password).length < 8) throw fail('Kata sandi minimal 8 karakter');
+    if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) throw fail('Kata sandi harus berisi huruf dan angka');
+    if (accounts().some((a) => a.user.email === e)) throw fail('Email sudah terdaftar. Silakan masuk.', 409);
+    const acc = { user: { id: `mu${accounts().length + 1}`, name: n, email: e, role: 'operator', hasPassword: true, avatarUrl: null }, password: String(password) };
+    accounts().push(acc);
+    S().current = acc;
+    return { token: 'mock-token', user: clone(acc.user) };
+  },
+  async googleLogin() {
+    await delay(400);
+    // Mode demo: anggap Google mengembalikan akun contoh ini.
+    const e = 'pengguna.demo@gmail.com';
+    let acc = accounts().find((a) => a.user.email === e);
+    if (!acc) {
+      acc = { user: { id: `mu${accounts().length + 1}`, name: 'Pengguna Google', email: e, role: 'operator', hasPassword: false, avatarUrl: null }, password: null };
+      accounts().push(acc);
     }
-    return { token: 'mock-token', user: clone(S().user) };
+    S().current = acc;
+    return { token: 'mock-token', user: clone(acc.user) };
   },
   async me() {
     await delay(80);
-    return clone(S().user);
+    return clone(me().user);
   },
   async updateProfile(body) {
     await delay();
-    if (body.name !== undefined) S().user.name = body.name;
-    if (body.email !== undefined) S().user.email = String(body.email).toLowerCase();
-    return { success: true, message: 'Profil diperbarui', data: { user: clone(S().user) } };
+    const u = me().user;
+    if (body.email !== undefined) {
+      const e = String(body.email).toLowerCase().trim();
+      if (e !== u.email && accounts().some((a) => a.user.email === e)) throw fail('Email sudah dipakai akun lain', 409);
+      u.email = e;
+    }
+    if (body.name !== undefined) u.name = body.name;
+    return { success: true, message: 'Profil diperbarui', data: { user: clone(u) } };
   },
   async changePassword({ currentPassword, newPassword }) {
     await delay();
-    if (currentPassword !== S().password) throw fail('Kata sandi lama salah');
-    if (String(newPassword).length < 6) throw fail('Kata sandi baru minimal 6 karakter');
-    S().password = newPassword;
-    return { success: true, message: 'Kata sandi berhasil diganti' };
+    const acc = me();
+    if (acc.password !== null && currentPassword !== acc.password) throw fail('Kata sandi lama salah');
+    if (String(newPassword).length < 8) throw fail('Kata sandi baru minimal 8 karakter');
+    acc.password = newPassword;
+    acc.user.hasPassword = true;
+    return { success: true, message: 'Kata sandi berhasil diganti', data: { user: clone(acc.user) } };
   },
 
   async getDashboard() {

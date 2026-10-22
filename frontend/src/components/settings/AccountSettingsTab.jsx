@@ -14,6 +14,8 @@ export default function AccountSettingsTab() {
   const [profile, setProfile] = useState({ name: user?.name || '', email: user?.email || '' });
   const [pw, setPw] = useState({ currentPassword: '', newPassword: '', confirm: '' });
   const [busy, setBusy] = useState('');
+  // Akun yang dibuat lewat Google belum punya kata sandi: cukup buat kata sandi baru.
+  const hasPassword = user?.hasPassword !== false;
 
   async function saveProfile() {
     setBusy('profile');
@@ -33,6 +35,7 @@ export default function AccountSettingsTab() {
     setBusy('pw');
     try {
       const res = await api.changePassword({ currentPassword: pw.currentPassword, newPassword: pw.newPassword });
+      if (res.data?.user) setUser(res.data.user);
       toast(res.message || 'Kata sandi diganti');
       setPw({ currentPassword: '', newPassword: '', confirm: '' });
     } catch (err) {
@@ -59,21 +62,28 @@ export default function AccountSettingsTab() {
       </SettingsCard>
 
       <SettingsCard
-        title="Ganti Kata Sandi"
+        title={hasPassword ? 'Ganti Kata Sandi' : 'Buat Kata Sandi'}
         onSave={savePassword}
         saving={busy === 'pw'}
-        saveLabel="Ganti Kata Sandi"
-        disabled={!pw.currentPassword || pw.newPassword.length < 6}
+        saveLabel={hasPassword ? 'Ganti Kata Sandi' : 'Buat Kata Sandi'}
+        disabled={(hasPassword && !pw.currentPassword) || pw.newPassword.length < 8}
       >
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <label className="label" htmlFor="cur">{t('Kata sandi lama')}</label>
-            <input id="cur" type="password" autoComplete="current-password" className="input" value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} />
-          </div>
+        {!hasPassword && (
+          <p className="mb-4 rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-800">
+            {t('Akun Anda masuk lewat Google. Buat kata sandi agar bisa juga masuk dengan email dan kata sandi.')}
+          </p>
+        )}
+        <div className={`grid gap-4 ${hasPassword ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+          {hasPassword && (
+            <div>
+              <label className="label" htmlFor="cur">{t('Kata sandi lama')}</label>
+              <input id="cur" type="password" autoComplete="current-password" className="input" value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} />
+            </div>
+          )}
           <div>
             <label className="label" htmlFor="new">{t('Kata sandi baru')}</label>
             <input id="new" type="password" autoComplete="new-password" className="input" value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} />
-            <p className="mt-1.5 text-xs text-slate-500">{t('Minimal 6 karakter.')}</p>
+            <p className="mt-1.5 text-xs text-slate-500">{t('Minimal 8 karakter.')}</p>
           </div>
           <div>
             <label className="label" htmlFor="conf">{t('Ulangi kata sandi baru')}</label>

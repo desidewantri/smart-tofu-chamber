@@ -69,13 +69,14 @@ async function createSession(data) {
  * 3) panggil ML (atau mock) -> simpan Prediction
  * 4) update shelfLifeAwal & prediksiDibuat (t0) pada sesi
  */
-async function ingestReading(payload, { topicChamberId } = {}) {
+async function ingestReading(payload, { topicChamberId, seenAt } = {}) {
   const data = validatePayload(payload, topicChamberId);
 
   await Chamber.findOneAndUpdate(
     { chamberId: data.chamberId },
     {
-      $set: { lastSeenAt: new Date() },
+      // seenAt: untuk data impor (Sheet) dipakai waktu baris tersebut, bukan waktu sekarang.
+      $max: { lastSeenAt: seenAt ? new Date(Math.min(new Date(seenAt).getTime(), Date.now())) : new Date() },
       $setOnInsert: {
         code: Chamber.codeFor(data.chamberId),
         name: `Chamber ${data.chamberId}`,
@@ -120,7 +121,8 @@ async function ingestReading(payload, { topicChamberId } = {}) {
       history,
     });
 
-    const now = new Date();
+    // Data impor (Sheet): prediksi dicatat pada waktu baris tersebut agar grafik & hitung mundur sesuai.
+    const now = seenAt ? new Date(Math.min(new Date(seenAt).getTime(), Date.now())) : new Date();
     prediction = await Prediction.create({
       sesiId: session._id,
       chamberId: data.chamberId,
