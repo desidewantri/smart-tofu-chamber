@@ -133,8 +133,11 @@ export default function NotificationSettingsTab({ settings, onSave }) {
           <div className="py-3">
             <Toggle label="Tidak Layak Jual" description="Saat sisa umur simpan di bawah batas rawan." checked={n.onTidakLayak} onChange={(v) => set({ onTidakLayak: v })} />
           </div>
-          <div className="pt-3">
+          <div className="py-3">
             <Toggle label="Chamber terputus" description="Saat chamber dengan sesi aktif berhenti mengirim data." checked={n.onOffline} onChange={(v) => set({ onOffline: v })} />
+          </div>
+          <div className="pt-3">
+            <Toggle label="Baterai alat lemah" description="Saat baterai alat sensor di bawah 20%." checked={n.onLowBattery !== false} onChange={(v) => set({ onLowBattery: v })} />
           </div>
         </div>
         <p className="text-xs text-slate-500">{t('Perubahan tersimpan otomatis.')}</p>

@@ -187,6 +187,11 @@ export const EN = {
   'Gagal masuk': 'Sign in failed',
   'Akun demo': 'Demo account',
   '(mode demo tanpa backend)': '(demo mode without backend)',
+  /* Baterai alat */
+  "Baterai alat": "Device battery",
+  "Alat tidak mengirim data. Nilai terakhir": "The device is not sending data. Last value",
+  "Baterai alat lemah": "Device battery low",
+  "Saat baterai alat sensor di bawah 20%.": "When the sensor device battery drops below 20%.",
   /* Daftar & masuk Google */
   "atau": "or",
   "Belum punya akun?": "Don't have an account?",
@@ -449,6 +454,7 @@ const list = (s, tr) => s.split(', ').map((x) => tr(x)).join(', ');
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export const PATTERNS = [
+  [/^Baterai tinggal (\d+)%\. Segera isi daya agar sensor tetap mengirim data\.$/, (m) => `Battery at ${m[1]}%. Charge it soon so the sensor keeps sending data.`],
   [/^Nomor WhatsApp tidak valid: (.+)$/, (m) => `Invalid WhatsApp number: ${m[1]}`],
   [/^Pesan uji dikirim ke (\d+) nomor$/, (m) => `Test message sent to ${m[1]} number(s)`],
   [/^Fonnte menolak pesan: (.+)$/, (m) => `Fonnte rejected the message: ${m[1]}`],

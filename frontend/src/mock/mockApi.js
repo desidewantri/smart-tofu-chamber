@@ -17,6 +17,14 @@ const accounts = () => {
 };
 const me = () => S().current || accounts()[0];
 
+// Baterai alat demo: mulai 72% saat halaman dibuka, habis dalam ±48 jam.
+const BATTERY_T0 = Date.now();
+const mockBattery = () => {
+  const percent = Math.max(0, Math.round(72 - ((Date.now() - BATTERY_T0) / 3600000) * (100 / 48)));
+  const level = percent < 20 ? 'lemah' : percent <= 50 ? 'sedang' : 'baik';
+  return { percent, level, at: new Date(Date.now() - 60000).toISOString(), stale: false };
+};
+
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const round = (x, d = 2) => Math.round(x * 10 ** d) / 10 ** d;
@@ -260,7 +268,16 @@ export const mockApi = {
         out.push({ id: `s${s.id}`, level: 'warning', chamberId: s.chamberId, title: `${c.name} Segera Jual`, message: `Sisa umur simpan ${s.sesiCode} kurang dari ${st.zones.segarHours} jam.`, time: v.prediksiDibuat });
       }
     });
+    const b = mockBattery();
+    if (st.notifications.onLowBattery !== false && b.percent < 20) {
+      out.push({ id: 'battery-low', level: 'warning', chamberId: null, title: 'Baterai alat lemah', message: `Baterai tinggal ${b.percent}%. Segera isi daya agar sensor tetap mengirim data.`, time: b.at });
+    }
     return out;
+  },
+
+  async getBattery() {
+    await delay(60);
+    return mockBattery();
   },
 
   async getChambers(q) {

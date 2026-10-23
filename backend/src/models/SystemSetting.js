@@ -27,6 +27,7 @@ const settingSchema = new mongoose.Schema(
       onSegeraJual: { type: Boolean, default: true },
       onTidakLayak: { type: Boolean, default: true },
       onOffline: { type: Boolean, default: true },
+      onLowBattery: { type: Boolean, default: true },
       whatsapp: {
         enabled: { type: Boolean, default: false },
         recipients: { type: [String], default: [] }, // nomor tujuan, format 62812...
@@ -37,6 +38,8 @@ const settingSchema = new mongoose.Schema(
       suhu: limits(25, 30), // °C
       rh: limits(75, 85), // %
     },
+    // Penanda internal: kapan peringatan WhatsApp "baterai lemah" terakhir dikirim (null = belum / sudah diisi ulang).
+    batteryLowNotifiedAt: { type: Date, default: null },
     business: {
       batchKg: { type: Number, default: 10 }, // berat tahu per sesi
       pricePerKg: { type: Number, default: 15000 }, // Rp

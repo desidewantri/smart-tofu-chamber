@@ -7,6 +7,7 @@ const sensorReadingSchema = new mongoose.Schema(
     tvoc: { type: Number, required: true }, // ppb
     suhu: { type: Number, required: true }, // °C
     rh: { type: Number, required: true }, // %
+    battery: { type: Number, default: null }, // % baterai alat (opsional)
     timestamp: { type: Date, required: true },
   },
   { timestamps: { createdAt: true, updatedAt: false } }

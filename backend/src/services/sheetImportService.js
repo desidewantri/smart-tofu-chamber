@@ -11,6 +11,7 @@
 const env = require('../config/env');
 const ImportCursor = require('../models/ImportCursor');
 const { ingestReading } = require('./ingestService');
+const { parseBattery } = require('../utils/battery');
 
 const CHAMBERS = [1, 2];
 let timer = null;
@@ -98,6 +99,11 @@ function rowsToReadings(rows, opts = {}) {
     suhu: col([`temp${n}`, `suhu${n}`, `temperature${n}`]),
     rh: col([`humid${n}`, `rh${n}`, `humidity${n}`, `kelembapan${n}`]),
     tvoc: col([`tvoc${n}`]),
+    // Baterai: kolom per chamber (battery1) atau satu kolom untuk alat (battery / baterai).
+    battery: (() => {
+      const own = col([`battery${n}`, `baterai${n}`, `bat${n}`]);
+      return own >= 0 ? own : col(['battery', 'baterai', 'bat', 'batt', 'battery (%)', 'baterai (%)']);
+    })(),
   })).filter((c) => c.suhu >= 0 && c.rh >= 0 && c.tvoc >= 0);
   if (!map.length) throw new Error('Kolom temp1/humid1/tvoc1 (atau temp2/humid2/tvoc2) tidak ditemukan');
 
@@ -110,7 +116,8 @@ function rowsToReadings(rows, opts = {}) {
       const suhu = toNumber(r[c.suhu]);
       const rh = toNumber(r[c.rh]);
       if ([tvoc, suhu, rh].some((x) => !Number.isFinite(x))) continue;
-      out.push({ chamberId: c.chamberId, timestamp, tvoc, suhu, rh });
+      const battery = c.battery >= 0 ? parseBattery(r[c.battery]) : null;
+      out.push({ chamberId: c.chamberId, timestamp, tvoc, suhu, rh, battery });
     }
   }
   return out.sort((a, b) => a.timestamp - b.timestamp);
@@ -141,7 +148,7 @@ async function syncOnce() {
     for (const r of fresh) {
       try {
         await ingestReading(
-          { chamber_id: n, tvoc: r.tvoc, suhu: r.suhu, rh: r.rh, timestamp: r.timestamp.toISOString() },
+          { chamber_id: n, tvoc: r.tvoc, suhu: r.suhu, rh: r.rh, battery: r.battery, timestamp: r.timestamp.toISOString() },
           { seenAt: r.timestamp }
         );
         imported += 1;

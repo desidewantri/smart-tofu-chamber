@@ -30,6 +30,7 @@ router.put('/auth/password', auth.changePassword);
 
 router.get('/dashboard', dashboard.dashboard);
 router.get('/notifications', dashboard.notifications);
+router.get('/battery', dashboard.battery);
 router.post('/notifications/whatsapp/test', dashboard.testWhatsApp);
 
 router.get('/chambers', chamber.list);

@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { NAV } from '@/components/layout/Sidebar';
 import { useI18n } from '@/context/I18nContext';
 import LanguageSwitch from '@/components/common/LanguageSwitch';
+import BatteryIndicator from '@/components/layout/BatteryIndicator';
 import { usePolling } from '@/lib/hooks';
 import { useInstallPrompt } from '@/lib/pwa';
 import { api } from '@/services/api';
@@ -75,6 +76,7 @@ export default function Topbar({ onMenu }) {
 
       <div className="flex items-center gap-1.5">
         <LanguageSwitch className="hidden bg-white shadow-sm sm:inline-flex" />
+        <BatteryIndicator />
         {/* Notifikasi */}
         <div className="relative" ref={bellRef}>
           <button
@@ -95,7 +97,7 @@ export default function Topbar({ onMenu }) {
                   return (
                     <Link
                       key={n.id}
-                      href={`/chambers/${n.chamberId}`}
+                      href={n.chamberId ? `/chambers/${n.chamberId}` : '/dashboard'}
                       onClick={() => setBellOpen(false)}
                       className="flex gap-3 border-b border-slate-50 px-4 py-3 last:border-0 hover:bg-slate-50"
                     >

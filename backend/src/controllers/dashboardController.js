@@ -5,7 +5,30 @@ const Prediction = require('../models/Prediction');
 const SystemSetting = require('../models/SystemSetting');
 const asyncHandler = require('../utils/asyncHandler');
 const { STATUS, classifyShelfLife, remainingSeconds } = require('../utils/status');
-const { sessionView, readingView, sensorZones, chamberView, downsample } = require('../utils/presenters');
+const { sessionView, readingView, sensorZones, chamberView, downsample, isConnected } = require('../utils/presenters');
+const { batteryLevel, LOW_PERCENT } = require('../utils/battery');
+
+/**
+ * Status baterai alat: diambil dari chamber yang paling baru melaporkan baterai
+ * (satu alat melayani Chamber 1 dan 2, jadi nilainya sama).
+ */
+async function batteryStatus(settings, now = Date.now()) {
+  const c = await Chamber.findOne({ battery: { $ne: null } }).sort({ batteryAt: -1 }).lean();
+  if (!c) return { percent: null, level: null, at: null, stale: false };
+  return {
+    percent: c.battery,
+    level: batteryLevel(c.battery),
+    at: c.batteryAt,
+    stale: !isConnected({ lastSeenAt: c.batteryAt }, settings, now),
+  };
+}
+exports.batteryStatus = batteryStatus;
+
+/** GET /api/battery */
+exports.battery = asyncHandler(async (_req, res) => {
+  const settings = await SystemSetting.get();
+  res.json({ success: true, data: await batteryStatus(settings) });
+});
 
 /** GET /api/dashboard : satu panggilan untuk semua kartu "Chambers Aktif". */
 exports.dashboard = asyncHandler(async (_req, res) => {
@@ -104,6 +127,18 @@ exports.notifications = asyncHandler(async (_req, res) => {
       });
     }
   });
+
+  if (n.onLowBattery) {
+    const b = await batteryStatus(settings, now);
+    if (b.percent !== null && !b.stale && b.percent < LOW_PERCENT) {
+      items.push({
+        id: 'battery-low', level: 'warning', chamberId: null,
+        title: 'Baterai alat lemah',
+        message: `Baterai tinggal ${b.percent}%. Segera isi daya agar sensor tetap mengirim data.`,
+        time: b.at,
+      });
+    }
+  }
 
   const order = { danger: 0, warning: 1, info: 2 };
   items.sort((a, b) => order[a.level] - order[b.level]);

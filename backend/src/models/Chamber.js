@@ -7,6 +7,9 @@ const chamberSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     enabled: { type: Boolean, default: true },
     lastSeenAt: { type: Date, default: null },
+    // Baterai alat terakhir yang dilaporkan untuk chamber ini (%). null = alat tidak mengirim data baterai.
+    battery: { type: Number, default: null },
+    batteryAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

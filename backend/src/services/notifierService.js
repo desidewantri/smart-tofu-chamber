@@ -6,6 +6,7 @@ const SystemSetting = require('../models/SystemSetting');
 const { STATUS, classifyShelfLife, remainingSeconds } = require('../utils/status');
 const { isConnected } = require('../utils/presenters');
 const { sendWhatsApp, isConfigured } = require('./whatsappService');
+const { LOW_PERCENT, RESET_PERCENT } = require('../utils/battery');
 
 /**
  * Pemeriksa berkala: kirim WhatsApp saat status sesi BERUBAH menjadi
@@ -66,10 +67,12 @@ async function checkOnce(now = Date.now()) {
   const n = settings.notifications || {};
   const wa = n.whatsapp || {};
   if (!n.enabled || !wa.enabled || !(wa.recipients || []).length || !isConfigured()) return { sent: 0 };
+  let sent = 0;
+
+  sent += await checkBattery(settings, wa.recipients, now);
 
   const sessions = await Session.find({ status: 'aktif' }).lean();
   const chambers = new Map((await Chamber.find().lean()).map((c) => [c.chamberId, c]));
-  let sent = 0;
 
   for (const s of sessions) {
     const c = chambers.get(s.chamberId);
@@ -103,6 +106,38 @@ async function checkOnce(now = Date.now()) {
     }
   }
   return { sent };
+}
+
+/** Peringatan baterai lemah: sekali saja, lalu boleh lagi setelah baterai diisi melewati RESET_PERCENT. */
+async function checkBattery(settings, recipients, now = Date.now()) {
+  if (!settings.notifications?.onLowBattery) return 0;
+  const c = await Chamber.findOne({ battery: { $ne: null } }).sort({ batteryAt: -1 }).lean();
+  if (!c || !isConnected({ lastSeenAt: c.batteryAt }, settings, now)) return 0;
+  if (c.battery >= RESET_PERCENT && settings.batteryLowNotifiedAt) {
+    await SystemSetting.updateOne({ key: 'default' }, { $set: { batteryLowNotifiedAt: null } });
+    return 0;
+  }
+  if (c.battery >= LOW_PERCENT) return 0;
+  const claimed = await SystemSetting.findOneAndUpdate(
+    { key: 'default', batteryLowNotifiedAt: null },
+    { $set: { batteryLowNotifiedAt: new Date() } },
+    { new: true }
+  );
+  if (!claimed) return 0;
+  const message = [
+    '*TOSCHA · Tofu Smart Chamber*',
+    `🔋 *Baterai alat lemah*: tinggal *${c.battery}%*.`,
+    'Segera isi daya agar sensor tetap mengirim data.',
+  ].join('\n');
+  try {
+    await sendWhatsApp(recipients, message);
+    console.log(`[wa] terkirim: baterai lemah ${c.battery}%`);
+    return 1;
+  } catch (err) {
+    console.error(`[wa] gagal mengirim baterai lemah: ${err.message}`);
+    await SystemSetting.updateOne({ key: 'default' }, { $set: { batteryLowNotifiedAt: null } });
+    return 0;
+  }
 }
 
 let timer = null;

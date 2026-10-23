@@ -4,6 +4,7 @@ const SensorReading = require('../models/SensorReading');
 const Prediction = require('../models/Prediction');
 const ApiError = require('../utils/ApiError');
 const predictionService = require('./predictionService');
+const { parseBattery } = require('../utils/battery');
 
 const HISTORY_WINDOW = 12; // W = 12 langkah (60 menit) untuk LSTM
 
@@ -31,7 +32,8 @@ function validatePayload(p, topicChamberId) {
   if (Number.isNaN(timestamp.getTime()) || timestamp.getTime() > Date.now() + 24 * 3600 * 1000) {
     timestamp = new Date();
   }
-  return { chamberId, tvoc, suhu, rh, timestamp };
+  const battery = parseBattery(p.battery ?? p.baterai ?? p.bat);
+  return { chamberId, tvoc, suhu, rh, timestamp, battery };
 }
 
 /** Sistem hanya punya 2 kelompok sensor: Chamber 1 dan Chamber 2. */
@@ -85,6 +87,13 @@ async function ingestReading(payload, { topicChamberId, seenAt } = {}) {
     },
     { upsert: true, new: true }
   );
+  if (data.battery !== null) {
+    // Simpan baterai hanya bila data ini lebih baru dari nilai baterai yang tersimpan.
+    await Chamber.updateOne(
+      { chamberId: data.chamberId, $or: [{ batteryAt: null }, { batteryAt: { $lte: data.timestamp } }] },
+      { $set: { battery: data.battery, batteryAt: data.timestamp } }
+    );
+  }
 
   let session = await Session.findOne({ chamberId: data.chamberId, status: 'aktif' });
   if (!session) session = await createSession(data);
@@ -95,6 +104,7 @@ async function ingestReading(payload, { topicChamberId, seenAt } = {}) {
     tvoc: data.tvoc,
     suhu: data.suhu,
     rh: data.rh,
+    battery: data.battery,
     timestamp: data.timestamp,
   });
 

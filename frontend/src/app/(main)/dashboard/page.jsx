@@ -26,10 +26,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-3">
+      <GreetingCard active={active} idle={idle} zones={zones} fetchedAt={fetchedAt} />
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-brand-900">{t('Chamber Aktif')}</h2>
-          <p className="text-[13px] text-slate-500 [@media(max-height:700px)]:hidden">
+          <h2 className="text-[15px] font-bold text-brand-900">{t('Chamber Aktif')}</h2>
+          <p className="text-xs text-slate-500 [@media(max-height:700px)]:hidden">
             {t('{n} chamber sedang menyimpan tahu · sensor mengirim data tiap {m} menit', { n: active.length, m: updateIntervalMinutes })}
           </p>
         </div>
@@ -64,7 +66,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <GreetingCard active={active} idle={idle} zones={zones} fetchedAt={fetchedAt} />
     </div>
   );
 }

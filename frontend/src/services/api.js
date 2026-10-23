@@ -90,6 +90,7 @@ const realApi = {
   // dashboard
   getDashboard: () => request('GET', '/dashboard').then((j) => j.data),
   getNotifications: () => request('GET', '/notifications').then((j) => j.data),
+  getBattery: () => request('GET', '/battery').then((j) => j.data),
 
   // chambers
   getChambers: (q) => request('GET', '/chambers', { query: { q } }).then((j) => j.data),

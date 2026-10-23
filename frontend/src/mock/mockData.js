@@ -7,7 +7,7 @@ export const DEFAULT_SETTINGS = {
   appDescription: 'Sistem pemantauan dan analitik prediktif untuk memperkirakan umur simpan tahu.',
   updateIntervalMinutes: 5,
   zones: { segarHours: 24, rawanHours: 8 },
-  notifications: { enabled: true, onSegeraJual: true, onTidakLayak: true, onOffline: true, whatsapp: { enabled: false, recipients: [] } },
+  notifications: { enabled: true, onSegeraJual: true, onTidakLayak: true, onOffline: true, onLowBattery: true, whatsapp: { enabled: false, recipients: [] } },
   thresholds: {
     tvoc: { aman: 200, perhatian: 400 },
     suhu: { aman: 25, perhatian: 30 },
