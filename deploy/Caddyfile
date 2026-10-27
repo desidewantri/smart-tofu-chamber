@@ -1,0 +1,11 @@
+# Caddy: HTTPS otomatis (Let's Encrypt/ZeroSSL) untuk domain di DOMAIN.
+# /api/*  -> backend, selain itu -> frontend (satu domain, tanpa masalah CORS).
+{$DOMAIN} {
+	encode zstd gzip
+	handle /api/* {
+		reverse_proxy backend:5000
+	}
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

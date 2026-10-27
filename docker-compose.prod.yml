@@ -1,0 +1,64 @@
+# TOSCHA di server (VPS). Jalankan dari folder ini:
+#   docker compose -f docker-compose.prod.yml up -d --build
+# Butuh: file .env di folder ini (DOMAIN=...) dan backend/.env (lihat README bagian "Server").
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    # Tidak dibuka ke internet: hanya backend yang bisa mengakses.
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    # Port 1883 sengaja belum dibuka ke internet. Buka setelah Mosquitto diberi password
+    # (untuk ESP32 yang mengirim langsung lewat MQTT).
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://mongo:27017/smart_tofu_chamber
+      MQTT_URL: mqtt://mosquitto:1883
+      CORS_ORIGIN: https://${DOMAIN}
+    depends_on:
+      - mongo
+      - mosquitto
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ""
+        NEXT_PUBLIC_USE_MOCK: "false"
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  mongo-data:
+  mosquitto-data:
+  caddy-data:
+  caddy-config:
