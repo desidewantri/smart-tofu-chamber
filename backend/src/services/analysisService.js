@@ -42,9 +42,9 @@ function buildInterpretation(status, sensors) {
     .map(([k]) => PARAM_LABEL[k]);
 
   let lead;
-  if (status === STATUS.LAYAK) lead = 'Perkiraan sisa umur simpan masih panjang; tahu layak dijual dengan tenang.';
-  else if (status === STATUS.SEGERA) lead = 'Perkiraan sisa umur simpan mulai terbatas; sebaiknya tahu segera dijual.';
-  else lead = 'Perkiraan sisa umur simpan sangat singkat; tahu tidak layak dijual dan perlu segera dikeluarkan.';
+  if (status === STATUS.LAYAK) lead = 'Perkiraan sisa umur simpan masih panjang; tahu layak dikonsumsi dengan tenang.';
+  else if (status === STATUS.SEGERA) lead = 'Perkiraan sisa umur simpan mulai terbatas; sebaiknya tahu segera dikonsumsi.';
+  else lead = 'Perkiraan sisa umur simpan sangat singkat; tahu tidak layak dikonsumsi dan perlu segera dikeluarkan.';
 
   const detail = bad.length
     ? ` Parameter yang melewati batas: ${bad.join(', ')}.`
@@ -88,7 +88,7 @@ function computeCostBenefit(sessions, settings) {
     netBenefit: Math.round(net),
     assumptions: [
       `Berat tahu per sesi ${b.batchKg} kg, harga Rp${b.pricePerKg.toLocaleString('id-ID')}/kg.`,
-      `Tahu "Segera Jual" dijual dengan diskon ${Math.round(b.discountSegera * 100)}%; "Tidak Layak Jual" dianggap tidak terjual.`,
+      `Tahu "Segera Konsumsi" dijual dengan diskon ${Math.round(b.discountSegera * 100)}%; "Tidak Layak Konsumsi" dianggap tidak terjual.`,
       `Tanpa sistem diasumsikan ${Math.round(b.lossRateWithoutSystem * 100)}% tahu terbuang (asumsi, perlu divalidasi dengan data produsen).`,
       `Biaya operasional Rp${b.operationalCostPerSession.toLocaleString('id-ID')} per sesi.`,
     ],

@@ -10,6 +10,7 @@
  */
 const env = require('../config/env');
 const ImportCursor = require('../models/ImportCursor');
+const Chamber = require('../models/Chamber');
 const { ingestReading } = require('./ingestService');
 const { parseBattery } = require('../utils/battery');
 
@@ -101,8 +102,8 @@ function rowsToReadings(rows, opts = {}) {
     tvoc: col([`tvoc${n}`]),
     // Baterai: kolom per chamber (battery1) atau satu kolom untuk alat (battery / baterai).
     battery: (() => {
-      const own = col([`battery${n}`, `baterai${n}`, `bat${n}`]);
-      return own >= 0 ? own : col(['battery', 'baterai', 'bat', 'batt', 'battery (%)', 'baterai (%)']);
+      const own = col([`battery${n}`, `baterai${n}`, `bat${n}`, `vbat${n}`]);
+      return own >= 0 ? own : col(['vbat', 'battery', 'baterai', 'bat', 'batt', 'battery (%)', 'baterai (%)', 'v_bat']);
     })(),
   })).filter((c) => c.suhu >= 0 && c.rh >= 0 && c.tvoc >= 0);
   if (!map.length) throw new Error('Kolom temp1/humid1/tvoc1 (atau temp2/humid2/tvoc2) tidak ditemukan');
@@ -160,6 +161,17 @@ async function syncOnce() {
     if (fresh.length) {
       await ImportCursor.updateOne({ key }, { $set: { lastTimestamp: last } }, { upsert: true });
     }
+  }
+  // Baterai: pakai baris terbaru yang berisi nilai baterai, walau baris itu sudah pernah diimpor
+  // (mis. kolom vbat baru ditambahkan) atau datanya ditolak (mis. TVOC 99999).
+  for (const n of CHAMBERS) {
+    const withBat = readings.filter((r) => r.chamberId === n && r.battery !== null);
+    const latest = withBat[withBat.length - 1];
+    if (!latest) continue;
+    await Chamber.updateOne(
+      { chamberId: n, $or: [{ batteryAt: null }, { batteryAt: { $lt: latest.timestamp } }] },
+      { $set: { battery: latest.battery, batteryAt: latest.timestamp } }
+    );
   }
   return { imported, rows: readings.length };
 }

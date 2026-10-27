@@ -106,14 +106,14 @@ exports.notifications = asyncHandler(async (_req, res) => {
     if (status === STATUS.TIDAK && n.onTidakLayak) {
       items.push({
         id: `tidak-${s._id}`, level: 'danger', chamberId: s.chamberId,
-        title: `${label} Tidak Layak Jual`,
+        title: `${label} Tidak Layak Konsumsi`,
         message: `Sisa umur simpan ${s.sesiCode} kurang dari ${settings.zones.rawanHours} jam.`,
         time: s.prediksiDibuat,
       });
     } else if (status === STATUS.SEGERA && n.onSegeraJual) {
       items.push({
         id: `segera-${s._id}`, level: 'warning', chamberId: s.chamberId,
-        title: `${label} Segera Jual`,
+        title: `${label} Segera Konsumsi`,
         message: `Sisa umur simpan ${s.sesiCode} kurang dari ${settings.zones.segarHours} jam.`,
         time: s.prediksiDibuat,
       });
@@ -167,7 +167,7 @@ exports.testWhatsApp = asyncHandler(async (req, res) => {
   const message = [
     '*TOSCHA · Tofu Smart Chamber*',
     '✅ Pesan uji berhasil. Notifikasi WhatsApp sudah terhubung.',
-    'Anda akan menerima pesan saat chamber masuk status Segera Jual, Tidak Layak Jual, atau terputus.',
+    'Anda akan menerima pesan saat chamber masuk status Segera Konsumsi, Tidak Layak Konsumsi, atau terputus.',
   ].join('\n');
   const out = await sendWhatsApp(targets, message);
   res.json({

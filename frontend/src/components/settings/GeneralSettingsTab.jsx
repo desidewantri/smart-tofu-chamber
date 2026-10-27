@@ -49,18 +49,18 @@ export default function GeneralSettingsTab({ settings, onSave }) {
 
       <SettingsCard
         title="Zona Status"
-        description="Batas sisa umur simpan untuk status Layak Jual, Segera Jual, dan Tidak Layak Jual."
+        description="Batas sisa umur simpan untuk status Layak Konsumsi, Segera Konsumsi, dan Tidak Layak Konsumsi."
         onSave={() => run('zones', { zones })}
         saving={busy === 'zones'}
         disabled={!(zones.rawanHours > 0 && zones.segarHours > zones.rawanHours)}
       >
         <div className="grid gap-4 sm:grid-cols-3">
-          <NumberField label="Batas Segar" unit={t('jam')} value={zones.segarHours} onChange={(v) => setZones({ ...zones, segarHours: v })} hint={t('Layak Jual bila sisa > {n} jam', { n: zones.segarHours })} />
-          <NumberField label="Batas Rawan" unit={t('jam')} value={zones.rawanHours} onChange={(v) => setZones({ ...zones, rawanHours: v })} hint={t('Segera Jual bila {a}–{b} jam', { a: zones.rawanHours, b: zones.segarHours })} />
+          <NumberField label="Batas Segar" unit={t('jam')} value={zones.segarHours} onChange={(v) => setZones({ ...zones, segarHours: v })} hint={t('Layak Konsumsi bila sisa > {n} jam', { n: zones.segarHours })} />
+          <NumberField label="Batas Rawan" unit={t('jam')} value={zones.rawanHours} onChange={(v) => setZones({ ...zones, rawanHours: v })} hint={t('Segera Konsumsi bila {a}–{b} jam', { a: zones.rawanHours, b: zones.segarHours })} />
           <div>
             <label className="label">{t('Di Bawah')}</label>
             <div className="input bg-slate-50 text-slate-500">&lt; {zones.rawanHours} {t('jam')}</div>
-            <p className="mt-1.5 text-xs text-slate-500">{t('Tidak Layak Jual')}</p>
+            <p className="mt-1.5 text-xs text-slate-500">{t('Tidak Layak Konsumsi')}</p>
           </div>
         </div>
         {!(zones.rawanHours > 0 && zones.segarHours > zones.rawanHours) && (

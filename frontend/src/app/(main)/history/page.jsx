@@ -12,9 +12,9 @@ import { ErrorState, Loading } from '@/components/common/States';
 const STATUS_OPTIONS = [
   { value: '', label: 'Semua Status' },
   { value: 'aktif', label: 'Berjalan' },
-  { value: 'Layak Jual', label: 'Layak Jual' },
-  { value: 'Segera Jual', label: 'Segera Jual' },
-  { value: 'Tidak Layak Jual', label: 'Tidak Layak Jual' },
+  { value: 'Layak Konsumsi', label: 'Layak Konsumsi' },
+  { value: 'Segera Konsumsi', label: 'Segera Konsumsi' },
+  { value: 'Tidak Layak Konsumsi', label: 'Tidak Layak Konsumsi' },
 ];
 
 export default function HistoryPage() {

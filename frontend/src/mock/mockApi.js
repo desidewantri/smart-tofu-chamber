@@ -39,7 +39,7 @@ const PERIOD_H = { '24h': 24, '7d': 168, '30d': 720, '90d': 2160, '180d': 4320, 
 
 /* ---------- helpers ---------- */
 const classify = (h, z) =>
-  h === null || h === undefined ? null : h > z.segarHours ? 'Layak Jual' : h >= z.rawanHours ? 'Segera Jual' : 'Tidak Layak Jual';
+  h === null || h === undefined ? null : h > z.segarHours ? 'Layak Konsumsi' : h >= z.rawanHours ? 'Segera Konsumsi' : 'Tidak Layak Konsumsi';
 const zoneOf = (v, l) => (v <= l.aman ? 'Aman' : v <= l.perhatian ? 'Perhatian' : 'Bahaya');
 const chamberNo = (id) => Number(id);
 const noise = (i, amp) => Math.sin(i * 12.9898) * 43758.5453 % 1 * amp;
@@ -141,11 +141,11 @@ function interpretation(status, sensors) {
   const bad = Object.entries(sensors).filter(([, v]) => v.zone === 'Bahaya').map(([k]) => LABEL[k]);
   const warn = Object.entries(sensors).filter(([, v]) => v.zone === 'Perhatian').map(([k]) => LABEL[k]);
   const lead =
-    status === 'Layak Jual'
-      ? 'Perkiraan sisa umur simpan masih panjang; tahu layak dijual dengan tenang.'
-      : status === 'Segera Jual'
-      ? 'Perkiraan sisa umur simpan mulai terbatas; sebaiknya tahu segera dijual.'
-      : 'Perkiraan sisa umur simpan sangat singkat; tahu tidak layak dijual dan perlu segera dikeluarkan.';
+    status === 'Layak Konsumsi'
+      ? 'Perkiraan sisa umur simpan masih panjang; tahu layak dikonsumsi dengan tenang.'
+      : status === 'Segera Konsumsi'
+      ? 'Perkiraan sisa umur simpan mulai terbatas; sebaiknya tahu segera dikonsumsi.'
+      : 'Perkiraan sisa umur simpan sangat singkat; tahu tidak layak dikonsumsi dan perlu segera dikeluarkan.';
   const detail = bad.length
     ? ` Parameter yang melewati batas: ${bad.join(', ')}.`
     : warn.length
@@ -262,10 +262,10 @@ export const mockApi = {
     S().sessions.filter((s) => s.status === 'aktif').forEach((s) => {
       const v = sessionView(s, now);
       const c = S().chambers.find((x) => x.chamberId === s.chamberId);
-      if (v.statusLayak === 'Tidak Layak Jual' && st.notifications.onTidakLayak) {
-        out.push({ id: `t${s.id}`, level: 'danger', chamberId: s.chamberId, title: `${c.name} Tidak Layak Jual`, message: `Sisa umur simpan ${s.sesiCode} kurang dari ${st.zones.rawanHours} jam.`, time: v.prediksiDibuat });
-      } else if (v.statusLayak === 'Segera Jual' && st.notifications.onSegeraJual) {
-        out.push({ id: `s${s.id}`, level: 'warning', chamberId: s.chamberId, title: `${c.name} Segera Jual`, message: `Sisa umur simpan ${s.sesiCode} kurang dari ${st.zones.segarHours} jam.`, time: v.prediksiDibuat });
+      if (v.statusLayak === 'Tidak Layak Konsumsi' && st.notifications.onTidakLayak) {
+        out.push({ id: `t${s.id}`, level: 'danger', chamberId: s.chamberId, title: `${c.name} Tidak Layak Konsumsi`, message: `Sisa umur simpan ${s.sesiCode} kurang dari ${st.zones.rawanHours} jam.`, time: v.prediksiDibuat });
+      } else if (v.statusLayak === 'Segera Konsumsi' && st.notifications.onSegeraJual) {
+        out.push({ id: `s${s.id}`, level: 'warning', chamberId: s.chamberId, title: `${c.name} Segera Konsumsi`, message: `Sisa umur simpan ${s.sesiCode} kurang dari ${st.zones.segarHours} jam.`, time: v.prediksiDibuat });
       }
     });
     const b = mockBattery();
@@ -401,10 +401,10 @@ export const mockApi = {
     const b = S().settings.business;
     const since = Date.now() - (PERIOD_H[period] || 720) * 3600000;
     const done = S().sessions.filter((s) => s.status === 'selesai' && s.selesai >= since && (!chamberId || s.chamberId === Number(chamberId)));
-    const counts = { 'Layak Jual': 0, 'Segera Jual': 0, 'Tidak Layak Jual': 0 };
+    const counts = { 'Layak Konsumsi': 0, 'Segera Konsumsi': 0, 'Tidak Layak Konsumsi': 0 };
     done.forEach((s) => { counts[s.statusAkhir] += 1; });
     const unit = b.batchKg * b.pricePerKg;
-    const withSys = counts['Layak Jual'] * unit + counts['Segera Jual'] * unit * (1 - b.discountSegera);
+    const withSys = counts['Layak Konsumsi'] * unit + counts['Segera Konsumsi'] * unit * (1 - b.discountSegera);
     const without = done.length * b.batchKg * (1 - b.lossRateWithoutSystem) * b.pricePerKg;
     const op = done.length * b.operationalCostPerSession;
     return {
@@ -419,7 +419,7 @@ export const mockApi = {
       netBenefit: Math.round(withSys - without - op),
       assumptions: [
         `Berat tahu per sesi ${b.batchKg} kg, harga Rp${b.pricePerKg.toLocaleString('id-ID')}/kg.`,
-        `Tahu "Segera Jual" dijual dengan diskon ${Math.round(b.discountSegera * 100)}%; "Tidak Layak Jual" dianggap tidak terjual.`,
+        `Tahu "Segera Konsumsi" dijual dengan diskon ${Math.round(b.discountSegera * 100)}%; "Tidak Layak Konsumsi" dianggap tidak terjual.`,
         `Tanpa sistem diasumsikan ${Math.round(b.lossRateWithoutSystem * 100)}% tahu terbuang (asumsi, perlu divalidasi dengan data produsen).`,
         `Biaya operasional Rp${b.operationalCostPerSession.toLocaleString('id-ID')} per sesi.`,
       ],

@@ -19,8 +19,8 @@ const settingSchema = new mongoose.Schema(
     },
     updateIntervalMinutes: { type: Number, default: 5, min: 1, max: 60 },
     zones: {
-      segarHours: { type: Number, default: 24 }, // > 24 jam  => Layak Jual
-      rawanHours: { type: Number, default: 8 }, //  8-24 jam => Segera Jual, < 8 => Tidak Layak Jual
+      segarHours: { type: Number, default: 24 }, // > 24 jam  => Layak Konsumsi
+      rawanHours: { type: Number, default: 8 }, //  8-24 jam => Segera Konsumsi, < 8 => Tidak Layak Konsumsi
     },
     notifications: {
       enabled: { type: Boolean, default: true },
@@ -43,7 +43,7 @@ const settingSchema = new mongoose.Schema(
     business: {
       batchKg: { type: Number, default: 10 }, // berat tahu per sesi
       pricePerKg: { type: Number, default: 15000 }, // Rp
-      discountSegera: { type: Number, default: 0.3 }, // diskon saat "Segera Jual"
+      discountSegera: { type: Number, default: 0.3 }, // diskon saat "Segera Konsumsi"
       lossRateWithoutSystem: { type: Number, default: 0.15 }, // asumsi tahu terbuang tanpa sistem
       operationalCostPerSession: { type: Number, default: 2000 }, // Rp
     },

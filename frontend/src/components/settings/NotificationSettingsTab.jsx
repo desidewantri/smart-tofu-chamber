@@ -128,10 +128,10 @@ export default function NotificationSettingsTab({ settings, onSave }) {
             <Toggle label="Aktifkan notifikasi" description="Matikan untuk menghentikan semua notifikasi." checked={n.enabled} onChange={(v) => set({ enabled: v })} />
           </div>
           <div className="py-3">
-            <Toggle label="Segera Jual" description="Saat sisa umur simpan masuk zona Segera Jual." checked={n.onSegeraJual} onChange={(v) => set({ onSegeraJual: v })} />
+            <Toggle label="Segera Konsumsi" description="Saat sisa umur simpan masuk zona Segera Konsumsi." checked={n.onSegeraJual} onChange={(v) => set({ onSegeraJual: v })} />
           </div>
           <div className="py-3">
-            <Toggle label="Tidak Layak Jual" description="Saat sisa umur simpan di bawah batas rawan." checked={n.onTidakLayak} onChange={(v) => set({ onTidakLayak: v })} />
+            <Toggle label="Tidak Layak Konsumsi" description="Saat sisa umur simpan di bawah batas rawan." checked={n.onTidakLayak} onChange={(v) => set({ onTidakLayak: v })} />
           </div>
           <div className="py-3">
             <Toggle label="Chamber terputus" description="Saat chamber dengan sesi aktif berhenti mengirim data." checked={n.onOffline} onChange={(v) => set({ onOffline: v })} />

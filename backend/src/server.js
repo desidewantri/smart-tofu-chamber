@@ -5,6 +5,7 @@ const mqttService = require('./services/mqttService');
 const notifierService = require('./services/notifierService');
 const sheetImportService = require('./services/sheetImportService');
 const SystemSetting = require('./models/SystemSetting');
+const { runMigrations } = require('./utils/migrations');
 
 async function main() {
   try {
@@ -16,6 +17,7 @@ async function main() {
   }
 
   await SystemSetting.get(); // pastikan dokumen pengaturan default ada
+  await runMigrations().catch((err) => console.error(`[migrasi] gagal: ${err.message}`));
   mqttService.start();
   notifierService.start();
   sheetImportService.start();

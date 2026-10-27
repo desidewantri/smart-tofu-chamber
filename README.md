@@ -129,7 +129,7 @@ Catatan:
 - Saat mengubah `sw.js`, naikkan nilai `VERSION` di dalamnya agar HP pengguna mengambil versi baru.
 
 ## Notifikasi WhatsApp (Fonnte)
-Backend memeriksa status chamber tiap 60 detik dan mengirim WhatsApp saat sesi berubah menjadi **Segera Jual**, **Tidak Layak Jual**, atau saat chamber **terputus**. Setiap kejadian hanya dikirim sekali per sesi.
+Backend memeriksa status chamber tiap 60 detik dan mengirim WhatsApp saat sesi berubah menjadi **Segera Konsumsi**, **Tidak Layak Konsumsi**, atau saat chamber **terputus**. Setiap kejadian hanya dikirim sekali per sesi.
 
 1. Daftar di https://fonnte.com, tambah perangkat, lalu scan QR dengan nomor WA pengirim (sebaiknya nomor khusus, bukan nomor pribadi). HP itu harus tetap menyala dan terhubung internet.
 2. Salin token perangkat ke `FONNTE_TOKEN` di `backend/.env`, lalu jalankan ulang backend.

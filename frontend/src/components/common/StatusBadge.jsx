@@ -3,7 +3,7 @@
 import { cn, STATUS_STYLES, NEUTRAL_STYLE, ZONE_STYLES } from '@/lib/utils';
 import { useI18n } from '@/context/I18nContext';
 
-/** Badge status shelf-life: Layak Jual / Segera Jual / Tidak Layak Jual (atau teks bebas bergaya netral). */
+/** Badge status shelf-life: Layak Konsumsi / Segera Konsumsi / Tidak Layak Konsumsi (atau teks bebas bergaya netral). */
 export function StatusBadge({ status, className = '', children }) {
   const { t } = useI18n();
   const style = STATUS_STYLES[status] || NEUTRAL_STYLE;

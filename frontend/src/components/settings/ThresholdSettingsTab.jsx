@@ -53,7 +53,7 @@ export default function ThresholdSettingsTab({ settings, onSave }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <NumberField label="Berat tahu per sesi" unit="kg" value={biz.batchKg} onChange={(v) => setBiz({ ...biz, batchKg: v })} />
           <NumberField label="Harga jual" unit="Rp/kg" step={500} value={biz.pricePerKg} onChange={(v) => setBiz({ ...biz, pricePerKg: v })} />
-          <NumberField label="Diskon saat Segera Jual" unit="0–1" step={0.05} value={biz.discountSegera} onChange={(v) => setBiz({ ...biz, discountSegera: v })} hint="0,3 = diskon 30%" />
+          <NumberField label="Diskon saat Segera Konsumsi" unit="0–1" step={0.05} value={biz.discountSegera} onChange={(v) => setBiz({ ...biz, discountSegera: v })} hint="0,3 = diskon 30%" />
           <NumberField label="Tahu terbuang tanpa sistem" unit="0–1" step={0.05} value={biz.lossRateWithoutSystem} onChange={(v) => setBiz({ ...biz, lossRateWithoutSystem: v })} hint="Asumsi pembanding" />
           <NumberField label="Biaya operasional per sesi" unit="Rp" step={500} value={biz.operationalCostPerSession} onChange={(v) => setBiz({ ...biz, operationalCostPerSession: v })} />
         </div>

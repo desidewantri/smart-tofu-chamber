@@ -1,9 +1,9 @@
 const DEFAULT_ZONES = { segarHours: 24, rawanHours: 8 };
 
 const STATUS = {
-  LAYAK: 'Layak Jual',
-  SEGERA: 'Segera Jual',
-  TIDAK: 'Tidak Layak Jual',
+  LAYAK: 'Layak Konsumsi',
+  SEGERA: 'Segera Konsumsi',
+  TIDAK: 'Tidak Layak Konsumsi',
 };
 
 /** Zona status dari sisa shelf-life (jam): >24 Layak, 8-24 Segera, <8 Tidak Layak. */

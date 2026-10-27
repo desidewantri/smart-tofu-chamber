@@ -1,3 +1,4 @@
+const { STATUS_RENAMES } = require('../utils/migrations');
 const Session = require('../models/Session');
 const Prediction = require('../models/Prediction');
 const SensorReading = require('../models/SensorReading');
@@ -37,8 +38,12 @@ exports.list = asyncHandler(async (req, res) => {
       filter.masuk.$lte = to;
     }
   }
-  // Filter "Status Akhir" (Layak Jual / Segera Jual / Tidak Layak Jual)
-  if (req.query.statusAkhir) filter.statusAkhir = String(req.query.statusAkhir);
+  // Filter "Status Akhir" (Layak Konsumsi / Segera Konsumsi / Tidak Layak Konsumsi)
+  if (req.query.statusAkhir) {
+    const want = String(req.query.statusAkhir);
+    const old = Object.keys(STATUS_RENAMES).find((k) => STATUS_RENAMES[k] === want);
+    filter.statusAkhir = old ? { $in: [want, old] } : want;
+  }
 
   const sessions = await Session.find(filter).lean();
   const now = Date.now();

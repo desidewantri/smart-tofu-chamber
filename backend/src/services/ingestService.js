@@ -32,7 +32,7 @@ function validatePayload(p, topicChamberId) {
   if (Number.isNaN(timestamp.getTime()) || timestamp.getTime() > Date.now() + 24 * 3600 * 1000) {
     timestamp = new Date();
   }
-  const battery = parseBattery(p.battery ?? p.baterai ?? p.bat);
+  const battery = parseBattery(p.battery ?? p.baterai ?? p.bat ?? p.vbat);
   return { chamberId, tvoc, suhu, rh, timestamp, battery };
 }
 

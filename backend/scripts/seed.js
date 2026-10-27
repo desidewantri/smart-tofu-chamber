@@ -77,8 +77,8 @@ async function main() {
 
   // ---------- Sesi aktif (meniru contoh di desain Figma) ----------
   const live = [
-    { chamberId: 1, tempC: 19.7, rhBase: 77, tsl: 26.0, age: 19.35 }, // sisa ~6j39m -> Tidak Layak Jual
-    { chamberId: 2, tempC: 20.2, rhBase: 72, tsl: 24.0, age: 10.35 }, // sisa ~13j39m -> Segera Jual
+    { chamberId: 1, tempC: 19.7, rhBase: 77, tsl: 26.0, age: 19.35 }, // sisa ~6j39m -> Tidak Layak Konsumsi
+    { chamberId: 2, tempC: 20.2, rhBase: 72, tsl: 24.0, age: 10.35 }, // sisa ~13j39m -> Segera Konsumsi
   ];
   for (const l of live) {
     seq += 1;

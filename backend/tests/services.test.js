@@ -139,14 +139,14 @@ test('normalizePhone menyeragamkan format nomor Indonesia', () => {
   assert.equal(normalizePhone(''), null);
 });
 
-test('buildMessage menyusun pesan Segera Jual dengan sisa waktu dan sensor', () => {
+test('buildMessage menyusun pesan Segera Konsumsi dengan sisa waktu dan sensor', () => {
   const msg = buildMessage({
     kind: 'segeraJual', chamberName: 'Chamber 1', sesiCode: 'CH-061', sisaDetik: 7 * 3600 + 50 * 60,
     reading: { suhu: 20.14, rh: 72, tvoc: 309.4 }, zones: { segarHours: 24, rawanHours: 8 },
   });
   assert.match(msg, /Chamber 1/);
   assert.match(msg, /CH-061/);
-  assert.match(msg, /Segera Jual/);
+  assert.match(msg, /Segera Konsumsi/);
   assert.match(msg, /±7 jam/);
   assert.doesNotMatch(msg, /menit/);
   assert.match(msg, /Suhu 20,1 °C/);

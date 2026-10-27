@@ -57,7 +57,7 @@ function mulberry32(seed) {
 const DAY = 24 * 3600 * 1000;
 const round = (x, d = 2) => Math.round(x * 10 ** d) / 10 ** d;
 
-const classify = (h, z) => (h > z.segarHours ? 'Layak Jual' : h >= z.rawanHours ? 'Segera Jual' : 'Tidak Layak Jual');
+const classify = (h, z) => (h > z.segarHours ? 'Layak Konsumsi' : h >= z.rawanHours ? 'Segera Konsumsi' : 'Tidak Layak Konsumsi');
 
 export function buildInitialState() {
   const now = Date.now();

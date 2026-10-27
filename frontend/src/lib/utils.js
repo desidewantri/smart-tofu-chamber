@@ -86,9 +86,9 @@ export function formatRelative(value, now = Date.now()) {
 /* ---------------- Status & zona ---------------- */
 
 export const STATUS = {
-  LAYAK: 'Layak Jual',
-  SEGERA: 'Segera Jual',
-  TIDAK: 'Tidak Layak Jual',
+  LAYAK: 'Layak Konsumsi',
+  SEGERA: 'Segera Konsumsi',
+  TIDAK: 'Tidak Layak Konsumsi',
 };
 
 export function classifyShelfLife(hours, zones = { segarHours: 24, rawanHours: 8 }) {
