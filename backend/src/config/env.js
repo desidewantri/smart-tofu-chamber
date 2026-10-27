@@ -2,6 +2,13 @@ require('dotenv').config();
 
 const bool = (v, d) => (v === undefined || v === '' ? d : String(v).toLowerCase() === 'true');
 
+const nodeEnv = process.env.NODE_ENV || 'development';
+if (nodeEnv === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 || /ganti/.test(process.env.JWT_SECRET))) {
+  // Tanpa ini, siapa pun yang tahu nilai bawaan bisa membuat token login palsu.
+  console.error('[env] JWT_SECRET wajib diisi string acak minimal 32 karakter di server produksi.');
+  process.exit(1);
+}
+
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 5000,

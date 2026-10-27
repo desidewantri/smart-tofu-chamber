@@ -6,7 +6,9 @@
 import { mockApi } from '@/mock/mockApi';
 
 export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === 'true';
-const BASE = `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '')}/api`;
+// NEXT_PUBLIC_API_URL kosong ("") = API di domain yang sama (server produksi lewat Caddy).
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000').replace(/\/$/, '');
+const BASE = `${API_ORIGIN}/api`;
 const TOKEN_KEY = 'stc_token';
 
 export class ApiError extends Error {
@@ -41,7 +43,7 @@ export const tokenStore = {
 };
 
 async function request(method, path, { query, body } = {}) {
-  const url = new URL(`${BASE}${path}`);
+  const url = new URL(`${BASE}${path}`, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
   Object.entries(query || {}).forEach(([k, v]) => {
     if (v !== undefined && v !== null && v !== '' && v !== 'all') url.searchParams.set(k, v);
   });
@@ -56,7 +58,7 @@ async function request(method, path, { query, body } = {}) {
   } catch {
     throw new ApiError(
       'Tidak dapat terhubung ke server. Pastikan backend berjalan di ' +
-        BASE.replace('/api', '') +
+        (API_ORIGIN || window.location.origin) +
         ' atau jalankan mode demo (npm run dev:mock).',
       0
     );
