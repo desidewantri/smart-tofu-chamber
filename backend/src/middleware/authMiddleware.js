@@ -7,7 +7,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const requireAuth = asyncHandler(async (req, _res, next) => {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) throw new ApiError(401, 'Silakan login terlebih dahulu');
+  if (!token) throw new ApiError(401, 'Silakan masuk terlebih dahulu');
   const payload = jwt.verify(token, env.jwtSecret);
   const user = await User.findById(payload.id);
   if (!user) throw new ApiError(401, 'Akun tidak ditemukan');
@@ -19,7 +19,7 @@ const requireAuth = asyncHandler(async (req, _res, next) => {
 function requireDeviceKey(req, _res, next) {
   if (!env.deviceApiKey) return next();
   if (req.headers['x-api-key'] === env.deviceApiKey) return next();
-  return next(new ApiError(401, 'API key perangkat tidak valid'));
+  return next(new ApiError(401, 'Kunci API perangkat tidak valid'));
 }
 
 module.exports = { requireAuth, requireDeviceKey };

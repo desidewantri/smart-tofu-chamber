@@ -10,6 +10,21 @@ const S = () => {
   return state;
 };
 
+// Daftar akun demo (akun admin bawaan + akun yang didaftarkan selama halaman terbuka).
+const accounts = () => {
+  if (!S().accounts) S().accounts = [{ user: { ...S().user, hasPassword: true, avatarUrl: null }, password: S().password }];
+  return S().accounts;
+};
+const me = () => S().current || accounts()[0];
+
+// Baterai alat demo: mulai 72% saat halaman dibuka, habis dalam ±48 jam.
+const BATTERY_T0 = Date.now();
+const mockBattery = () => {
+  const percent = Math.max(0, Math.round(72 - ((Date.now() - BATTERY_T0) / 3600000) * (100 / 48)));
+  const level = percent < 20 ? 'lemah' : percent <= 50 ? 'sedang' : 'baik';
+  return { percent, level, at: new Date(Date.now() - 60000).toISOString(), stale: false };
+};
+
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const round = (x, d = 2) => Math.round(x * 10 ** d) / 10 ** d;
@@ -26,10 +41,7 @@ const PERIOD_H = { '24h': 24, '7d': 168, '30d': 720, '90d': 2160, '180d': 4320, 
 const classify = (h, z) =>
   h === null || h === undefined ? null : h > z.segarHours ? 'Layak Jual' : h >= z.rawanHours ? 'Segera Jual' : 'Tidak Layak Jual';
 const zoneOf = (v, l) => (v <= l.aman ? 'Aman' : v <= l.perhatian ? 'Perhatian' : 'Bahaya');
-const chamberNo = (idOrCode) => {
-  const m = /^CH-0*(\d+)$/i.exec(String(idOrCode));
-  return m ? Number(m[1]) : Number(idOrCode);
-};
+const chamberNo = (id) => Number(id);
 const noise = (i, amp) => Math.sin(i * 12.9898) * 43758.5453 % 1 * amp;
 
 function isConnected(c, now) {
@@ -130,10 +142,10 @@ function interpretation(status, sensors) {
   const warn = Object.entries(sensors).filter(([, v]) => v.zone === 'Perhatian').map(([k]) => LABEL[k]);
   const lead =
     status === 'Layak Jual'
-      ? 'Estimasi sisa shelf-life masih panjang; tahu layak dijual dengan tenang.'
+      ? 'Perkiraan sisa umur simpan masih panjang; tahu layak dijual dengan tenang.'
       : status === 'Segera Jual'
-      ? 'Estimasi sisa shelf-life mulai terbatas; sebaiknya tahu segera dijual.'
-      : 'Estimasi sisa shelf-life sangat singkat; tahu tidak layak dijual dan perlu segera dikeluarkan.';
+      ? 'Perkiraan sisa umur simpan mulai terbatas; sebaiknya tahu segera dijual.'
+      : 'Perkiraan sisa umur simpan sangat singkat; tahu tidak layak dijual dan perlu segera dikeluarkan.';
   const detail = bad.length
     ? ` Parameter yang melewati batas: ${bad.join(', ')}.`
     : warn.length
@@ -150,29 +162,66 @@ const seasonOf = (m) => ([10, 11, 12, 1, 2, 3].includes(m) ? 'hujan' : 'kemarau'
 
 /* ---------- API ---------- */
 export const mockApi = {
+  async authConfig() {
+    return { allowRegistration: true, googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || null };
+  },
   async login(email, password) {
     await delay(300);
-    if (String(email).toLowerCase() !== S().user.email || password !== S().password) {
-      throw fail('Email atau password salah', 401);
+    const acc = accounts().find((a) => a.user.email === String(email).toLowerCase().trim());
+    if (acc && acc.password === null) throw fail('Akun ini belum punya kata sandi. Masuk dengan Google, lalu buat kata sandi di Pengaturan > Akun.', 401);
+    if (!acc || password !== acc.password) throw fail('Email atau kata sandi salah', 401);
+    S().current = acc;
+    return { token: 'mock-token', user: clone(acc.user) };
+  },
+  async register({ name, email, password }) {
+    await delay(300);
+    const n = String(name || '').trim();
+    const e = String(email || '').toLowerCase().trim();
+    if (n.length < 2) throw fail('Nama minimal 2 karakter');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) throw fail('Format email tidak valid');
+    if (String(password).length < 8) throw fail('Kata sandi minimal 8 karakter');
+    if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) throw fail('Kata sandi harus berisi huruf dan angka');
+    if (accounts().some((a) => a.user.email === e)) throw fail('Email sudah terdaftar. Silakan masuk.', 409);
+    const acc = { user: { id: `mu${accounts().length + 1}`, name: n, email: e, role: 'operator', hasPassword: true, avatarUrl: null }, password: String(password) };
+    accounts().push(acc);
+    S().current = acc;
+    return { token: 'mock-token', user: clone(acc.user) };
+  },
+  async googleLogin() {
+    await delay(400);
+    // Mode demo: anggap Google mengembalikan akun contoh ini.
+    const e = 'pengguna.demo@gmail.com';
+    let acc = accounts().find((a) => a.user.email === e);
+    if (!acc) {
+      acc = { user: { id: `mu${accounts().length + 1}`, name: 'Pengguna Google', email: e, role: 'operator', hasPassword: false, avatarUrl: null }, password: null };
+      accounts().push(acc);
     }
-    return { token: 'mock-token', user: clone(S().user) };
+    S().current = acc;
+    return { token: 'mock-token', user: clone(acc.user) };
   },
   async me() {
     await delay(80);
-    return clone(S().user);
+    return clone(me().user);
   },
   async updateProfile(body) {
     await delay();
-    if (body.name !== undefined) S().user.name = body.name;
-    if (body.email !== undefined) S().user.email = String(body.email).toLowerCase();
-    return { success: true, message: 'Profil diperbarui', data: { user: clone(S().user) } };
+    const u = me().user;
+    if (body.email !== undefined) {
+      const e = String(body.email).toLowerCase().trim();
+      if (e !== u.email && accounts().some((a) => a.user.email === e)) throw fail('Email sudah dipakai akun lain', 409);
+      u.email = e;
+    }
+    if (body.name !== undefined) u.name = body.name;
+    return { success: true, message: 'Profil diperbarui', data: { user: clone(u) } };
   },
   async changePassword({ currentPassword, newPassword }) {
     await delay();
-    if (currentPassword !== S().password) throw fail('Password lama salah');
-    if (String(newPassword).length < 6) throw fail('Password baru minimal 6 karakter');
-    S().password = newPassword;
-    return { success: true, message: 'Password berhasil diganti' };
+    const acc = me();
+    if (acc.password !== null && currentPassword !== acc.password) throw fail('Kata sandi lama salah');
+    if (String(newPassword).length < 8) throw fail('Kata sandi baru minimal 8 karakter');
+    acc.password = newPassword;
+    acc.user.hasPassword = true;
+    return { success: true, message: 'Kata sandi berhasil diganti', data: { user: clone(acc.user) } };
   },
 
   async getDashboard() {
@@ -214,12 +263,21 @@ export const mockApi = {
       const v = sessionView(s, now);
       const c = S().chambers.find((x) => x.chamberId === s.chamberId);
       if (v.statusLayak === 'Tidak Layak Jual' && st.notifications.onTidakLayak) {
-        out.push({ id: `t${s.id}`, level: 'danger', chamberId: s.chamberId, title: `${c.code} Tidak Layak Jual`, message: `Sisa shelf-life ${s.sesiCode} kurang dari ${st.zones.rawanHours} jam.`, time: v.prediksiDibuat });
+        out.push({ id: `t${s.id}`, level: 'danger', chamberId: s.chamberId, title: `${c.name} Tidak Layak Jual`, message: `Sisa umur simpan ${s.sesiCode} kurang dari ${st.zones.rawanHours} jam.`, time: v.prediksiDibuat });
       } else if (v.statusLayak === 'Segera Jual' && st.notifications.onSegeraJual) {
-        out.push({ id: `s${s.id}`, level: 'warning', chamberId: s.chamberId, title: `${c.code} Segera Jual`, message: `Sisa shelf-life ${s.sesiCode} kurang dari ${st.zones.segarHours} jam.`, time: v.prediksiDibuat });
+        out.push({ id: `s${s.id}`, level: 'warning', chamberId: s.chamberId, title: `${c.name} Segera Jual`, message: `Sisa umur simpan ${s.sesiCode} kurang dari ${st.zones.segarHours} jam.`, time: v.prediksiDibuat });
       }
     });
+    const b = mockBattery();
+    if (st.notifications.onLowBattery !== false && b.percent < 20) {
+      out.push({ id: 'battery-low', level: 'warning', chamberId: null, title: 'Baterai alat lemah', message: `Baterai tinggal ${b.percent}%. Segera isi daya agar sensor tetap mengirim data.`, time: b.at });
+    }
     return out;
+  },
+
+  async getBattery() {
+    await delay(60);
+    return mockBattery();
   },
 
   async getChambers(q) {
@@ -232,7 +290,7 @@ export const mockApi = {
         const s = S().sessions.find((x) => x.chamberId === c.chamberId && x.status === 'aktif');
         return { ...chamberView(c, now), sesiSaatIni: s ? s.sesiCode : null };
       })
-      .filter((c) => !term || c.code.toLowerCase().includes(term) || c.name.toLowerCase().includes(term));
+      .filter((c) => !term || c.name.toLowerCase().includes(term));
   },
   async getChamber(id) {
     await delay();
@@ -249,14 +307,6 @@ export const mockApi = {
       sensors: sensorsOf(latest),
       recentSessions: S().sessions.filter((x) => x.chamberId === no && x.status === 'selesai').sort((a, b) => b.selesai - a.selesai).slice(0, 5).map((x) => sessionView(x)),
     };
-  },
-  async createChamber({ name }) {
-    await delay();
-    if (!String(name || '').trim()) throw fail('Nama chamber wajib diisi');
-    const no = Math.max(...S().chambers.map((c) => c.chamberId)) + 1;
-    const c = { id: `mc${no}`, chamberId: no, code: `CH-${String(no).padStart(3, '0')}`, name: String(name).trim(), enabled: true, lastSeenAt: null };
-    S().chambers.push(c);
-    return { success: true, message: `Chamber ${c.code} ditambahkan`, data: chamberView(c) };
   },
   async updateChamber(id, body) {
     await delay();
@@ -403,14 +453,18 @@ export const mockApi = {
     let insight = 'Data belum cukup untuk membandingkan musim hujan dan kemarau.';
     if (h.sessions && k.sessions && h.avgShelfLife && k.avgShelfLife) {
       const diff = ((k.avgShelfLife - h.avgShelfLife) / h.avgShelfLife) * 100;
-      insight = `Rata-rata estimasi shelf-life awal lebih panjang pada musim ${diff >= 0 ? 'kemarau' : 'hujan'} (selisih ${Math.abs(Math.round(diff))}%). Perbedaan suhu ruang (${h.avgSuhu}°C vs ${k.avgSuhu}°C) adalah faktor yang paling mungkin menjelaskannya. Ini deskripsi data, bukan bukti sebab-akibat.`;
+      insight = `Rata-rata perkiraan umur simpan awal lebih panjang pada musim ${diff >= 0 ? 'kemarau' : 'hujan'} (selisih ${Math.abs(Math.round(diff))}%). Perbedaan suhu ruang (${h.avgSuhu}°C vs ${k.avgSuhu}°C) adalah faktor yang paling mungkin menjelaskannya. Ini deskripsi data, bukan bukti sebab-akibat.`;
     }
     return { period: period || '365d', chamberId: chamberId || null, months, seasons, insight };
   },
 
   async getSettings() {
     await delay(80);
-    return clone(S().settings);
+    return { ...clone(S().settings), whatsappStatus: { configured: false, dryRun: false, provider: 'fonnte' } };
+  },
+  async testWhatsApp() {
+    await delay();
+    throw fail('Mode demo tanpa backend: pesan WhatsApp tidak bisa dikirim. Jalankan backend dan isi FONNTE_TOKEN.');
   },
   async updateSettings(body) {
     await delay();
@@ -426,7 +480,15 @@ export const mockApi = {
     const merge = (t, src) => Object.entries(src).forEach(([k, v]) => {
       if (v && typeof v === 'object' && !Array.isArray(v)) { t[k] = t[k] || {}; merge(t[k], v); } else t[k] = v;
     });
+    const wa = body.notifications && body.notifications.whatsapp;
+    if (wa && Array.isArray(wa.recipients)) {
+      const norm = (r) => { let d = String(r).replace(/\D/g, ''); if (d.startsWith('0')) d = `62${d.slice(1)}`; else if (d.startsWith('8')) d = `62${d}`; return /^62\d{8,13}$/.test(d) ? d : null; };
+      const clean = [];
+      for (const r of wa.recipients) { const p = norm(r); if (!p) throw fail(`Nomor WhatsApp tidak valid: ${r}`); if (!clean.includes(p)) clean.push(p); }
+      if (clean.length > 5) throw fail('Maksimal 5 nomor WhatsApp');
+      wa.recipients = clean;
+    }
     merge(st, body);
-    return { success: true, message: 'Pengaturan disimpan', data: clone(st) };
+    return { success: true, message: 'Pengaturan disimpan', data: { ...clone(st), whatsappStatus: { configured: false, dryRun: false, provider: 'fonnte' } } };
   },
 };

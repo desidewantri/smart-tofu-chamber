@@ -10,7 +10,7 @@ const { LOW_PERCENT, RESET_PERCENT } = require('../utils/battery');
 
 /**
  * Pemeriksa berkala: kirim WhatsApp saat status sesi BERUBAH menjadi
- * Segera Konsumsi / Tidak Layak Konsumsi, atau saat chamber terputus.
+ * Segera Jual / Tidak Layak Jual, atau saat chamber terputus.
  * Setiap kejadian hanya dikirim sekali per sesi (ditandai di session.notified).
  */
 
@@ -29,16 +29,16 @@ function buildMessage({ kind, chamberName, sesiCode, sisaDetik, reading, zones }
     : null;
   const lines = { segeraJual: [], tidakLayak: [], offline: [] };
   lines.segeraJual = [
-    `⚠️ *${chamberName}* (ID sesi ${sesiCode}) sekarang *Segera Konsumsi*.`,
+    `⚠️ *${chamberName}* (ID sesi ${sesiCode}) sekarang *Segera Jual*.`,
     `Perkiraan sisa umur tahu ${formatRemaining(sisaDetik)} (di bawah ${zones.segarHours} jam).`,
     sensor,
-    'Saran: konsumsi atau olah tahu di chamber ini secepatnya.',
+    'Saran: jual atau olah tahu di chamber ini secepatnya.',
   ];
   lines.tidakLayak = [
-    `⛔ *${chamberName}* (ID sesi ${sesiCode}) sekarang *Tidak Layak Konsumsi*.`,
+    `⛔ *${chamberName}* (ID sesi ${sesiCode}) sekarang *Tidak Layak Jual*.`,
     `Perkiraan sisa umur tahu ${formatRemaining(sisaDetik)} (di bawah ${zones.rawanHours} jam).`,
     sensor,
-    'Saran: periksa kondisi tahu sebelum dikonsumsi.',
+    'Saran: periksa kondisi tahu sebelum dijual.',
   ];
   lines.offline = [
     `📡 *${chamberName}* (ID sesi ${sesiCode}) *terputus*.`,
@@ -91,7 +91,7 @@ async function checkOnce(now = Date.now()) {
 
     for (const kind of jobs) {
       if (!(await claim(s._id, kind))) continue;
-      // Sudah Tidak Layak Konsumsi -> pesan Segera Konsumsi tidak perlu dikirim lagi.
+      // Sudah Tidak Layak Jual -> pesan Segera Jual tidak perlu dikirim lagi.
       if (kind === 'tidakLayak') await Session.updateOne({ _id: s._id, 'notified.segeraJual': null }, { $set: { 'notified.segeraJual': new Date() } });
       const reading = await SensorReading.findOne({ chamberId: s.chamberId }).sort({ timestamp: -1 }).lean();
       const message = buildMessage({ kind, chamberName, sesiCode: s.sesiCode, sisaDetik: sisa, reading, zones: settings.zones });

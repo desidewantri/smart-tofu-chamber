@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useI18n } from '@/context/I18nContext';
 import { NumberField, SettingsCard } from './SettingsCard';
 
 const PARAMS = [
@@ -10,6 +11,7 @@ const PARAMS = [
 ];
 
 export default function ThresholdSettingsTab({ settings, onSave }) {
+  const { t } = useI18n();
   const [th, setTh] = useState(settings.thresholds);
   const [biz, setBiz] = useState(settings.business);
   const [busy, setBusy] = useState('');
@@ -32,19 +34,19 @@ export default function ThresholdSettingsTab({ settings, onSave }) {
       >
         {PARAMS.map(({ key, label, unit }) => (
           <div key={key} className="rounded-xl border border-slate-100 p-4">
-            <p className="mb-3 text-sm font-semibold text-slate-800">{label}</p>
+            <p className="mb-3 text-sm font-semibold text-slate-800">{t(label)}</p>
             <div className="grid gap-4 sm:grid-cols-2">
             <NumberField label="Aman sampai" unit={unit} step={key === 'tvoc' ? 10 : 0.5} value={th[key].aman} onChange={(v) => setTh({ ...th, [key]: { ...th[key], aman: v } })} />
             <NumberField label="Perhatian sampai" unit={unit} step={key === 'tvoc' ? 10 : 0.5} value={th[key].perhatian} onChange={(v) => setTh({ ...th, [key]: { ...th[key], perhatian: v } })} hint="Di atas nilai ini = Bahaya" />
             </div>
           </div>
         ))}
-        {!valid && <p className="text-sm text-red-600">Batas "Perhatian" harus lebih besar dari batas "Aman".</p>}
+        {!valid && <p className="text-sm text-red-600">{t('Batas "Perhatian" harus lebih besar dari batas "Aman".')}</p>}
       </SettingsCard>
 
       <SettingsCard
-        title="Asumsi Biaya & Manfaat"
-        description="Dipakai tab Biaya & Manfaat di halaman Analysis. Isi dengan angka dari produsen tahu yang sebenarnya."
+        title="Asumsi Biaya dan Manfaat"
+        description="Dipakai tab Biaya dan Manfaat di halaman Analisis. Isi dengan angka dari produsen tahu yang sebenarnya."
         onSave={() => run('biz', { business: biz })}
         saving={busy === 'biz'}
       >

@@ -10,12 +10,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-
-const fmtH = (v) => `${Number(v).toFixed(1)} j`;
+import { useI18n } from '@/context/I18nContext';
+import { TICK, TOOLTIP_STYLE, xAxisLabel, yAxisLabel } from '@/lib/chart';
 
 /**
- * Grafik estimasi sisa shelf-life (jam) terhadap waktu sejak tahu masuk (jam).
- * Garis putus-putus: Batas Segar (hijau) & Batas Rawan (kuning).
+ * Grafik perkiraan sisa umur simpan.
+ * Sumbu X: waktu sejak tahu masuk (jam). Sumbu Y: sisa umur simpan (jam).
+ * Garis putus-putus: Batas Segar (hijau) dan Batas Rawan (kuning).
  */
 export default function ShelfLifeChart({
   data,
@@ -23,50 +24,53 @@ export default function ShelfLifeChart({
   xKey = 'elapsedHours',
   yKey = 'shelfLife',
   color = '#16a34a',
-  height = 190,
+  height = 230,
+  heightClass,
 }) {
+  const { t } = useI18n();
   const maxVal = Math.max(0, ...(data || []).map((d) => d[yKey] || 0));
   const yMax = Math.max(Math.ceil((zones.segarHours * 1.25) / 10) * 10, Math.ceil(maxVal / 10) * 10);
 
   return (
-    <div style={{ height }} className="w-full">
+    <div style={heightClass ? undefined : { height }} className={heightClass ? `w-full ${heightClass}` : 'w-full'}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 12, bottom: 14, left: -12 }}>
+        <LineChart data={data} margin={{ top: 8, right: 16, bottom: 22, left: 4 }}>
           <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
           <XAxis
             dataKey={xKey}
             type="number"
             domain={[0, 'dataMax']}
-            tick={{ fontSize: 11, fill: '#64748b' }}
+            tick={TICK}
             tickFormatter={(v) => `${Math.round(v)}`}
             axisLine={false}
             tickLine={false}
-            label={{ value: 'Jam sejak masuk', position: 'insideBottomRight', offset: -14, fontSize: 10, fill: '#94a3b8' }}
+            label={xAxisLabel(t('Waktu sejak tahu masuk (jam)'))}
           />
           <YAxis
             domain={[0, yMax]}
             ticks={[0, zones.rawanHours, zones.segarHours, yMax]}
-            tick={{ fontSize: 11, fill: '#64748b' }}
+            tick={TICK}
             axisLine={false}
             tickLine={false}
-            width={44}
+            width={56}
+            label={yAxisLabel(t('Sisa umur (jam)'))}
           />
           <Tooltip
-            formatter={(v) => [fmtH(v), 'Sisa shelf-life']}
-            labelFormatter={(v) => `Jam ke-${Number(v).toFixed(1)}`}
-            contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
+            formatter={(v) => [`${Number(v).toFixed(1)} ${t('jam')}`, t('Sisa umur simpan')]}
+            labelFormatter={(v) => t('Jam ke-{n}', { n: Number(v).toFixed(1) })}
+            contentStyle={TOOLTIP_STYLE}
           />
           <ReferenceLine
             y={zones.segarHours}
             stroke="#16a34a"
             strokeDasharray="5 4"
-            label={{ value: 'Batas Segar', position: 'insideTopRight', fontSize: 10, fill: '#15803d' }}
+            label={{ value: t('Batas Segar'), position: 'insideTopRight', fontSize: 10, fill: '#15803d' }}
           />
           <ReferenceLine
             y={zones.rawanHours}
             stroke="#d97706"
             strokeDasharray="5 4"
-            label={{ value: 'Batas Rawan', position: 'insideTopRight', fontSize: 10, fill: '#b45309' }}
+            label={{ value: t('Batas Rawan'), position: 'insideTopRight', fontSize: 10, fill: '#b45309' }}
           />
           <Line type="monotone" dataKey={yKey} stroke={color} strokeWidth={2.5} dot={false} isAnimationActive={false} />
         </LineChart>

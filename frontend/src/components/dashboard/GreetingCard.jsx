@@ -42,18 +42,18 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
   const count = { segera: 0, tidak: 0 };
   active.forEach(({ session }) => {
     const st = classifyShelfLife((session?.sisaDetik ?? 0) / 3600, zones);
-    if (st === 'Segera Konsumsi') count.segera += 1;
-    if (st === 'Tidak Layak Konsumsi') count.tidak += 1;
+    if (st === 'Segera Jual') count.segera += 1;
+    if (st === 'Tidak Layak Jual') count.tidak += 1;
   });
   const chambers = [...active, ...idle].map((x) => x.chamber).filter((c) => c.enabled);
   const offline = chambers.filter((c) => !c.connected).length;
 
   const parts = [];
-  if (count.segera) parts.push(t('{n} chamber perlu segera dikonsumsi', { n: count.segera }));
-  if (count.tidak) parts.push(t('{n} chamber sudah tidak layak dikonsumsi', { n: count.tidak }));
+  if (count.segera) parts.push(t('{n} chamber perlu segera dijual', { n: count.segera }));
+  if (count.tidak) parts.push(t('{n} chamber sudah tidak layak jual', { n: count.tidak }));
   let summary;
   if (!active.length) summary = t('Belum ada tahu yang sedang disimpan.');
-  else if (!parts.length) summary = t('Semua tahu di chamber masih layak dikonsumsi.');
+  else if (!parts.length) summary = t('Semua tahu di chamber masih layak jual.');
   else summary = `${t('Hari ini')} ${parts.join(` ${t('dan')} `)}.`;
   const sensor = offline ? t('{n} sensor terputus.', { n: offline }) : t('Semua sensor terhubung.');
 

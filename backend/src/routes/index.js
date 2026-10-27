@@ -15,7 +15,10 @@ const router = express.Router();
 
 // ---- publik ----
 router.get('/health', dashboard.health(mqttService.status, env));
+router.get('/auth/config', auth.config);
 router.post('/auth/login', auth.login);
+router.post('/auth/register', auth.register);
+router.post('/auth/google', auth.google);
 router.post('/sensor', requireDeviceKey, sensor.ingest); // perangkat / simulator
 
 // ---- butuh login ----
@@ -27,9 +30,10 @@ router.put('/auth/password', auth.changePassword);
 
 router.get('/dashboard', dashboard.dashboard);
 router.get('/notifications', dashboard.notifications);
+router.get('/battery', dashboard.battery);
+router.post('/notifications/whatsapp/test', dashboard.testWhatsApp);
 
 router.get('/chambers', chamber.list);
-router.post('/chambers', chamber.create);
 router.get('/chambers/:id', chamber.detail);
 router.put('/chambers/:id', chamber.update);
 router.post('/chambers/:id/selesai', chamber.closeSession);

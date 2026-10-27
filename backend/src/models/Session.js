@@ -9,7 +9,7 @@ const mongoose = require('mongoose');
 const sessionSchema = new mongoose.Schema(
   {
     seq: { type: Number, required: true, unique: true },
-    sesiCode: { type: String, required: true, unique: true }, // SES-001
+    sesiCode: { type: String, required: true, unique: true }, // CH-001 (ID sesi, berurutan)
     chamberId: { type: Number, required: true, index: true },
     status: { type: String, enum: ['aktif', 'selesai'], default: 'aktif' },
     masuk: { type: Date, required: true },
@@ -24,6 +24,12 @@ const sessionSchema = new mongoose.Schema(
     readingCount: { type: Number, default: 0 },
     statusAkhir: { type: String, default: null }, // status saat sesi ditutup
     sisaAkhirJam: { type: Number, default: null },
+    // Penanda notifikasi WhatsApp yang sudah terkirim, agar tiap kejadian hanya dikirim sekali per sesi.
+    notified: {
+      segeraJual: { type: Date, default: null },
+      tidakLayak: { type: Date, default: null },
+      offline: { type: Date, default: null },
+    },
   },
   { timestamps: true, collection: 'sesis' }
 );
@@ -35,6 +41,6 @@ sessionSchema.index(
 );
 sessionSchema.index({ masuk: -1 });
 
-sessionSchema.statics.codeFor = (seq) => `SES-${String(seq).padStart(3, '0')}`;
+sessionSchema.statics.codeFor = (seq) => `CH-${String(seq).padStart(3, '0')}`;
 
 module.exports = mongoose.model('Session', sessionSchema);

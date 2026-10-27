@@ -42,9 +42,9 @@ function buildInterpretation(status, sensors) {
     .map(([k]) => PARAM_LABEL[k]);
 
   let lead;
-  if (status === STATUS.LAYAK) lead = 'Estimasi sisa shelf-life masih panjang; tahu layak dijual dengan tenang.';
-  else if (status === STATUS.SEGERA) lead = 'Estimasi sisa shelf-life mulai terbatas; sebaiknya tahu segera dijual.';
-  else lead = 'Estimasi sisa shelf-life sangat singkat; tahu tidak layak dijual dan perlu segera dikeluarkan.';
+  if (status === STATUS.LAYAK) lead = 'Perkiraan sisa umur simpan masih panjang; tahu layak dijual dengan tenang.';
+  else if (status === STATUS.SEGERA) lead = 'Perkiraan sisa umur simpan mulai terbatas; sebaiknya tahu segera dijual.';
+  else lead = 'Perkiraan sisa umur simpan sangat singkat; tahu tidak layak dijual dan perlu segera dikeluarkan.';
 
   const detail = bad.length
     ? ` Parameter yang melewati batas: ${bad.join(', ')}.`
@@ -142,7 +142,7 @@ function groupSeasonal(rows) {
     const diff = ((k.avgShelfLife - h.avgShelfLife) / h.avgShelfLife) * 100;
     const longer = diff >= 0 ? 'kemarau' : 'hujan';
     insight =
-      `Rata-rata estimasi shelf-life awal lebih panjang pada musim ${longer} ` +
+      `Rata-rata perkiraan umur simpan awal lebih panjang pada musim ${longer} ` +
       `(selisih ${Math.abs(Math.round(diff))}%). Perbedaan suhu ruang (${h.avgSuhu}°C vs ${k.avgSuhu}°C) ` +
       'adalah faktor yang paling mungkin menjelaskannya. Ini deskripsi data, bukan bukti sebab-akibat.';
   }

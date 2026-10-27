@@ -33,8 +33,10 @@ export default function SettingsPage() {
       const res = await api.updateSettings(body);
       setOverride(res.data);
       toast(res.message || 'Pengaturan disimpan');
+      return true;
     } catch (err) {
       toast(err.message, 'error');
+      return false;
     }
   }
 
