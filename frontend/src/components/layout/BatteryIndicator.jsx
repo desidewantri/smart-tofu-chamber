@@ -10,7 +10,6 @@ const TONE = {
   baik: { value: 'text-emerald-600', fill: '#059669' },
   sedang: { value: 'text-amber-600', fill: '#d97706' },
   lemah: { value: 'text-red-600', fill: '#dc2626' },
-  stale: { value: 'text-slate-400', fill: '#94a3b8' },
 };
 
 function BatteryIcon({ percent, color }) {
@@ -31,7 +30,8 @@ export default function BatteryIndicator() {
   const { data } = usePolling(() => api.getBattery(), 60000, []);
   if (!data || data.percent === null || data.percent === undefined) return null;
 
-  const tone = data.stale ? TONE.stale : TONE[data.level] || TONE.baik;
+  // Warna selalu mengikuti persen; data lama hanya diberi tahu lewat keterangan (hover).
+  const tone = TONE[data.level] || TONE.baik;
   const hint = data.stale
     ? `${t('Alat tidak mengirim data. Nilai terakhir')} ${formatRelative(data.at).toLowerCase()}`
     : `${t('Diperbarui')} ${formatRelative(data.at).toLowerCase()}`;
