@@ -5,30 +5,7 @@ const Prediction = require('../models/Prediction');
 const SystemSetting = require('../models/SystemSetting');
 const asyncHandler = require('../utils/asyncHandler');
 const { STATUS, classifyShelfLife, remainingSeconds } = require('../utils/status');
-const { sessionView, readingView, sensorZones, chamberView, downsample, isConnected } = require('../utils/presenters');
-const { batteryLevel, LOW_PERCENT } = require('../utils/battery');
-
-/**
- * Status baterai alat: diambil dari chamber yang paling baru melaporkan baterai
- * (satu alat melayani Chamber 1 dan 2, jadi nilainya sama).
- */
-async function batteryStatus(settings, now = Date.now()) {
-  const c = await Chamber.findOne({ battery: { $ne: null } }).sort({ batteryAt: -1 }).lean();
-  if (!c) return { percent: null, level: null, at: null, stale: false };
-  return {
-    percent: c.battery,
-    level: batteryLevel(c.battery),
-    at: c.batteryAt,
-    stale: !isConnected({ lastSeenAt: c.batteryAt }, settings, now),
-  };
-}
-exports.batteryStatus = batteryStatus;
-
-/** GET /api/battery */
-exports.battery = asyncHandler(async (_req, res) => {
-  const settings = await SystemSetting.get();
-  res.json({ success: true, data: await batteryStatus(settings) });
-});
+const { sessionView, readingView, sensorZones, chamberView, downsample } = require('../utils/presenters');
 
 /** GET /api/dashboard : satu panggilan untuk semua kartu "Chambers Aktif". */
 exports.dashboard = asyncHandler(async (_req, res) => {
@@ -100,45 +77,33 @@ exports.notifications = asyncHandler(async (_req, res) => {
 
   sessions.forEach((s) => {
     const c = chamberOf.get(s.chamberId);
-    const label = c ? c.name : `Chamber ${s.chamberId}`;
+    const label = c ? c.code : `Chamber ${s.chamberId}`;
     const sisa = remainingSeconds(s.toObject(), now);
     const status = sisa === null ? null : classifyShelfLife(sisa / 3600, settings.zones);
     if (status === STATUS.TIDAK && n.onTidakLayak) {
       items.push({
         id: `tidak-${s._id}`, level: 'danger', chamberId: s.chamberId,
         title: `${label} Tidak Layak Jual`,
-        message: `Sisa umur simpan ${s.sesiCode} kurang dari ${settings.zones.rawanHours} jam.`,
+        message: `Sisa shelf-life ${s.sesiCode} kurang dari ${settings.zones.rawanHours} jam.`,
         time: s.prediksiDibuat,
       });
     } else if (status === STATUS.SEGERA && n.onSegeraJual) {
       items.push({
         id: `segera-${s._id}`, level: 'warning', chamberId: s.chamberId,
         title: `${label} Segera Jual`,
-        message: `Sisa umur simpan ${s.sesiCode} kurang dari ${settings.zones.segarHours} jam.`,
+        message: `Sisa shelf-life ${s.sesiCode} kurang dari ${settings.zones.segarHours} jam.`,
         time: s.prediksiDibuat,
       });
     }
     if (n.onOffline && c && !chamberView(c, settings, now).connected) {
       items.push({
         id: `offline-${c._id}`, level: 'info', chamberId: c.chamberId,
-        title: `${label} terputus`,
+        title: `${label} offline`,
         message: 'Chamber dengan sesi aktif tidak mengirim data. Periksa koneksi perangkat.',
         time: c.lastSeenAt,
       });
     }
   });
-
-  if (n.onLowBattery) {
-    const b = await batteryStatus(settings, now);
-    if (b.percent !== null && !b.stale && b.percent < LOW_PERCENT) {
-      items.push({
-        id: 'battery-low', level: 'warning', chamberId: null,
-        title: 'Baterai alat lemah',
-        message: `Baterai tinggal ${b.percent}%. Segera isi daya agar sensor tetap mengirim data.`,
-        time: b.at,
-      });
-    }
-  }
 
   const order = { danger: 0, warning: 1, info: 2 };
   items.sort((a, b) => order[a.level] - order[b.level]);
@@ -158,21 +123,3 @@ exports.health = (mqttStatus, env) =>
       time: new Date().toISOString(),
     });
   });
-
-/** POST /api/notifications/whatsapp/test : kirim pesan uji ke nomor tersimpan (atau body.target). */
-exports.testWhatsApp = asyncHandler(async (req, res) => {
-  const { sendWhatsApp } = require('../services/whatsappService');
-  const settings = await SystemSetting.get();
-  const targets = req.body?.target ? [req.body.target] : settings.notifications?.whatsapp?.recipients || [];
-  const message = [
-    '*TOSCHA · Tofu Smart Chamber*',
-    '✅ Pesan uji berhasil. Notifikasi WhatsApp sudah terhubung.',
-    'Anda akan menerima pesan saat chamber masuk status Segera Jual, Tidak Layak Jual, atau terputus.',
-  ].join('\n');
-  const out = await sendWhatsApp(targets, message);
-  res.json({
-    success: true,
-    message: out.provider === 'dry-run' ? 'Mode uji: pesan dicetak di terminal backend, tidak dikirim' : `Pesan uji dikirim ke ${out.targets.length} nomor`,
-    data: out,
-  });
-});

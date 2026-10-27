@@ -37,11 +37,11 @@ export const STEPS = [
     href: '/dashboard',
     title: { id: 'Baca status berwarna', en: 'Read the colour status' },
     body: {
-      id: 'Warna kartu mengikuti sisa umur simpan. Hijau berarti aman dijual, kuning berarti sebaiknya segera dijual, merah berarti tidak layak dijual.',
-      en: 'The card colour follows the remaining shelf life. Green means safe to sell, yellow means sell soon, red means not fit for sale.',
+      id: 'Warna kartu mengikuti sisa umur simpan. Hijau berarti aman dikonsumsi, kuning berarti sebaiknya segera dikonsumsi, merah berarti tidak layak dikonsumsi.',
+      en: 'The card colour follows the remaining shelf life. Green means safe to consume, yellow means consume soon, red means not fit to consume.',
     },
     tips: [
-      { id: 'Layak Jual: sisa lebih dari 24 jam. Segera Jual: 8 sampai 24 jam. Tidak Layak Jual: kurang dari 8 jam.', en: 'Fit to sell: more than 24 hours left. Sell soon: 8 to 24 hours. Not fit to sell: under 8 hours.' },
+      { id: 'Layak Konsumsi: sisa lebih dari 24 jam. Segera Konsumsi: 8 sampai 24 jam. Tidak Layak Konsumsi: kurang dari 8 jam.', en: 'Fit to consume: more than 24 hours left. Consume soon: 8 to 24 hours. Not fit to consume: under 8 hours.' },
       { id: 'Batas 24 dan 8 jam bisa diubah di Pengaturan → Umum → Zona Status.', en: 'The 24 and 8 hour limits can be changed in Settings → General → Status Zones.' },
     ],
   },
@@ -105,7 +105,7 @@ export const STEPS = [
       en: 'In Settings you can change the interval, status zones, sensor parameter limits, notifications, cost assumptions, and your account name and password.',
     },
     tips: [
-      { id: 'Ikon lonceng di atas menampilkan notifikasi Segera Jual, Tidak Layak Jual, dan chamber terputus.', en: 'The bell icon at the top shows Sell soon, Not fit to sell, and disconnected chamber alerts.' },
+      { id: 'Ikon lonceng di atas menampilkan notifikasi Segera Konsumsi, Tidak Layak Konsumsi, dan chamber terputus.', en: 'The bell icon at the top shows Consume soon, Not fit to consume, and disconnected chamber alerts.' },
     ],
   },
 ];
@@ -158,8 +158,8 @@ export const TOPICS = [
     title: { id: 'Umur simpan', en: 'Shelf life' },
     body: [
       {
-        id: 'Umur simpan adalah perkiraan berapa lama tahu masih layak dijual sejak masuk chamber. Aplikasi menghitungnya dari data sensor, lalu menampilkannya sebagai hitung mundur.',
-        en: 'Shelf life is the estimate of how long the tofu stays fit to sell after entering the chamber. The app calculates it from sensor data and shows it as a countdown.',
+        id: 'Umur simpan adalah perkiraan berapa lama tahu masih layak dikonsumsi sejak masuk chamber. Aplikasi menghitungnya dari data sensor, lalu menampilkannya sebagai hitung mundur.',
+        en: 'Shelf life is the estimate of how long the tofu stays fit to consume after entering the chamber. The app calculates it from sensor data and shows it as a countdown.',
       },
       {
         id: 'Angka ini perkiraan dan dapat berubah ketika kondisi sensor berubah. Bukan pengganti pemeriksaan mutu langsung.',
@@ -182,8 +182,8 @@ export const TOPICS = [
     title: { id: 'Zona status dan zona sensor', en: 'Status zones and sensor zones' },
     body: [
       {
-        id: 'Status tahu ditentukan dari sisa umur simpan: Layak Jual (lebih dari 24 jam), Segera Jual (8 sampai 24 jam), dan Tidak Layak Jual (kurang dari 8 jam).',
-        en: 'Tofu status is decided by the remaining shelf life: Fit to sell (over 24 hours), Sell soon (8 to 24 hours), and Not fit to sell (under 8 hours).',
+        id: 'Status tahu ditentukan dari sisa umur simpan: Layak Konsumsi (lebih dari 24 jam), Segera Konsumsi (8 sampai 24 jam), dan Tidak Layak Konsumsi (kurang dari 8 jam).',
+        en: 'Tofu status is decided by the remaining shelf life: Fit to consume (over 24 hours), Consume soon (8 to 24 hours), and Not fit to consume (under 8 hours).',
       },
       {
         id: 'Setiap sensor juga diberi label Aman, Perhatian, atau Bahaya. Batas awalnya hanya titik mulai, bukan ambang ilmiah, dan sebaiknya disesuaikan dengan data uji laboratorium.',

@@ -41,14 +41,14 @@ export default function AuthShell({ title, subtitle, children }) {
         <div className="absolute left-[12%] top-[14%] max-w-lg text-white [@media(max-height:720px)]:top-[8%]">
           <h1 className="text-4xl font-bold leading-tight [@media(max-height:720px)]:text-3xl">{t('Umur simpan tahu, terpantau setiap saat.')}</h1>
           <p className="mt-4 text-lg leading-relaxed text-white/85">
-            {t('Sensor membaca kondisi chamber, aplikasi memperkirakan sisa umur tahu dan memberi tahu kapan waktu terbaik untuk menjual.')}
+            {t('Sensor membaca kondisi chamber, aplikasi memperkirakan sisa umur tahu dan memberi tahu kapan tahu sebaiknya dikonsumsi.')}
           </p>
         </div>
         <PreviewCard
           className="left-[8%] top-[40%] -rotate-3"
           name="Chamber 1"
           hours="6"
-          status="Tidak Layak Jual"
+          status="Tidak Layak Konsumsi"
           tone={{ text: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200', stroke: '#b91c1c', pill: 'bg-red-100/70' }}
           path="M0 8 C60 12 120 22 180 30 S300 46 360 50"
         />
@@ -56,7 +56,7 @@ export default function AuthShell({ title, subtitle, children }) {
           className="left-[36%] top-[62%] rotate-2"
           name="Chamber 2"
           hours="13"
-          status="Segera Jual"
+          status="Segera Konsumsi"
           tone={{ text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', stroke: '#b45309', pill: 'bg-amber-100/70' }}
           path="M0 12 C60 14 120 18 180 26 S300 34 360 38"
         />

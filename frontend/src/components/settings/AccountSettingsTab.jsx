@@ -4,18 +4,14 @@ import { useState } from 'react';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/common/Toast';
-import { useI18n } from '@/context/I18nContext';
 import { SettingsCard } from './SettingsCard';
 
 export default function AccountSettingsTab() {
   const { user, setUser } = useAuth();
   const { toast } = useToast();
-  const { t } = useI18n();
   const [profile, setProfile] = useState({ name: user?.name || '', email: user?.email || '' });
   const [pw, setPw] = useState({ currentPassword: '', newPassword: '', confirm: '' });
   const [busy, setBusy] = useState('');
-  // Akun yang dibuat lewat Google belum punya kata sandi: cukup buat kata sandi baru.
-  const hasPassword = user?.hasPassword !== false;
 
   async function saveProfile() {
     setBusy('profile');
@@ -31,12 +27,11 @@ export default function AccountSettingsTab() {
   }
 
   async function savePassword() {
-    if (pw.newPassword !== pw.confirm) return toast('Konfirmasi kata sandi tidak sama', 'error');
+    if (pw.newPassword !== pw.confirm) return toast('Konfirmasi password tidak sama', 'error');
     setBusy('pw');
     try {
       const res = await api.changePassword({ currentPassword: pw.currentPassword, newPassword: pw.newPassword });
-      if (res.data?.user) setUser(res.data.user);
-      toast(res.message || 'Kata sandi diganti');
+      toast(res.message || 'Password diganti');
       setPw({ currentPassword: '', newPassword: '', confirm: '' });
     } catch (err) {
       toast(err.message, 'error');
@@ -51,42 +46,35 @@ export default function AccountSettingsTab() {
       <SettingsCard title="Profil" onSave={saveProfile} saving={busy === 'profile'}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="label" htmlFor="pname">{t('Nama')}</label>
+            <label className="label" htmlFor="pname">Nama</label>
             <input id="pname" className="input" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} />
           </div>
           <div>
-            <label className="label" htmlFor="pemail">{t('Email')}</label>
+            <label className="label" htmlFor="pemail">Email</label>
             <input id="pemail" type="email" className="input" value={profile.email} onChange={(e) => setProfile({ ...profile, email: e.target.value })} />
           </div>
         </div>
       </SettingsCard>
 
       <SettingsCard
-        title={hasPassword ? 'Ganti Kata Sandi' : 'Buat Kata Sandi'}
+        title="Ganti Password"
         onSave={savePassword}
         saving={busy === 'pw'}
-        saveLabel={hasPassword ? 'Ganti Kata Sandi' : 'Buat Kata Sandi'}
-        disabled={(hasPassword && !pw.currentPassword) || pw.newPassword.length < 8}
+        saveLabel="Ganti Password"
+        disabled={!pw.currentPassword || pw.newPassword.length < 6}
       >
-        {!hasPassword && (
-          <p className="mb-4 rounded-xl bg-brand-50 px-3.5 py-2.5 text-sm text-brand-800">
-            {t('Akun Anda masuk lewat Google. Buat kata sandi agar bisa juga masuk dengan email dan kata sandi.')}
-          </p>
-        )}
-        <div className={`grid gap-4 ${hasPassword ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
-          {hasPassword && (
-            <div>
-              <label className="label" htmlFor="cur">{t('Kata sandi lama')}</label>
-              <input id="cur" type="password" autoComplete="current-password" className="input" value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} />
-            </div>
-          )}
+        <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className="label" htmlFor="new">{t('Kata sandi baru')}</label>
-            <input id="new" type="password" autoComplete="new-password" className="input" value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} />
-            <p className="mt-1.5 text-xs text-slate-500">{t('Minimal 8 karakter.')}</p>
+            <label className="label" htmlFor="cur">Password lama</label>
+            <input id="cur" type="password" autoComplete="current-password" className="input" value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} />
           </div>
           <div>
-            <label className="label" htmlFor="conf">{t('Ulangi kata sandi baru')}</label>
+            <label className="label" htmlFor="new">Password baru</label>
+            <input id="new" type="password" autoComplete="new-password" className="input" value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} />
+            <p className="mt-1.5 text-xs text-slate-500">Minimal 6 karakter.</p>
+          </div>
+          <div>
+            <label className="label" htmlFor="conf">Ulangi password baru</label>
             <input id="conf" type="password" autoComplete="new-password" className="input" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} />
           </div>
         </div>

@@ -7,7 +7,6 @@
  *
  * Opsi: --chamber N  --interval DETIK (jeda kirim, default 3)  --step MENIT (waktu simulasi per kirim, default 5)
  *       --temp C (default 27)  --rh % (default 70)  --age JAM (umur awal tahu, default 0)
- *       --battery % (baterai awal, default 100)
  *       --count N (berhenti setelah N kiriman)  --api URL  --key API_KEY  --mqtt-url URL
  */
 const { mulberry32, gauss, tvocAt, baseTslHours, round } = require('./lib/simulate');
@@ -41,8 +40,6 @@ const rnd = mulberry32(Date.now() % 100000);
 const tsl = baseTslHours(tempC);
 let sent = 0;
 let mqttClient = null;
-const batteryStart = Number(args.battery ?? 100);
-const ageStart = ageH;
 
 function nextPayload() {
   const payload = {
@@ -50,8 +47,6 @@ function nextPayload() {
     tvoc: round(Math.max(20, tvocAt(ageH, tsl) + gauss(rnd) * 12), 1),
     suhu: round(tempC + gauss(rnd) * 0.25, 2),
     rh: round(Math.min(99, Math.max(30, rhBase + gauss(rnd) * 1.2)), 1),
-    // Baterai alat: habis dalam ±48 jam waktu simulasi.
-    battery: Math.max(0, Math.round(batteryStart - (ageH - ageStart) * (100 / 48))),
     timestamp: new Date().toISOString(),
   };
   ageH += stepMin / 60;

@@ -3,11 +3,11 @@
  * Bentuk datanya sengaja sama dengan respons backend asli.
  */
 export const DEFAULT_SETTINGS = {
-  appName: 'TOSCHA',
-  appDescription: 'Sistem pemantauan dan analitik prediktif untuk memperkirakan umur simpan tahu.',
+  appName: 'Smart Tofu Chamber',
+  appDescription: 'Sistem monitoring dan predictive analytics untuk estimasi shelf-life tahu.',
   updateIntervalMinutes: 5,
   zones: { segarHours: 24, rawanHours: 8 },
-  notifications: { enabled: true, onSegeraJual: true, onTidakLayak: true, onOffline: true, onLowBattery: true, whatsapp: { enabled: false, recipients: [] } },
+  notifications: { enabled: true, onSegeraJual: true, onTidakLayak: true, onOffline: true },
   thresholds: {
     tvoc: { aman: 200, perhatian: 400 },
     suhu: { aman: 25, perhatian: 30 },
@@ -65,8 +65,10 @@ export function buildInitialState() {
   const settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 
   const chambers = [
-    { id: 'mc1', chamberId: 1, code: 'CHAMBER-1', name: 'Chamber 1', enabled: true, lastSeenAt: now },
-    { id: 'mc2', chamberId: 2, code: 'CHAMBER-2', name: 'Chamber 2', enabled: true, lastSeenAt: now },
+    { id: 'mc1', chamberId: 1, code: 'CH-001', name: 'Chamber 1', enabled: true, lastSeenAt: now },
+    { id: 'mc2', chamberId: 2, code: 'CH-002', name: 'Chamber 2', enabled: true, lastSeenAt: now },
+    { id: 'mc3', chamberId: 3, code: 'CH-003', name: 'Chamber 3', enabled: true, lastSeenAt: now - 2 * DAY },
+    { id: 'mc4', chamberId: 4, code: 'CH-004', name: 'Chamber 4', enabled: false, lastSeenAt: null },
   ];
 
   const sessions = [];
@@ -83,8 +85,8 @@ export function buildInitialState() {
     const seq = i + 1;
     sessions.push({
       id: `ms${seq}`,
-      sesiCode: `CH-${String(seq).padStart(3, '0')}`,
-      chamberId: (i % 2) + 1,
+      sesiCode: `SES-${String(seq).padStart(3, '0')}`,
+      chamberId: (i % 3) + 1,
       status: 'selesai',
       masuk: startMs,
       selesai: startMs + age * 3600000,
@@ -111,7 +113,7 @@ export function buildInitialState() {
     const masuk = now - l.age * 3600000;
     sessions.push({
       id: `ms${seq}`,
-      sesiCode: `CH-${String(seq).padStart(3, '0')}`,
+      sesiCode: `SES-${String(seq).padStart(3, '0')}`,
       chamberId: l.chamberId,
       status: 'aktif',
       masuk,

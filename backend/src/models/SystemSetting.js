@@ -12,10 +12,10 @@ const limits = (aman, perhatian) => ({
 const settingSchema = new mongoose.Schema(
   {
     key: { type: String, default: 'default', unique: true },
-    appName: { type: String, default: 'TOSCHA' },
+    appName: { type: String, default: 'Smart Tofu Chamber' },
     appDescription: {
       type: String,
-      default: 'Sistem pemantauan dan analitik prediktif untuk memperkirakan umur simpan tahu.',
+      default: 'Sistem monitoring dan predictive analytics untuk estimasi shelf-life tahu.',
     },
     updateIntervalMinutes: { type: Number, default: 5, min: 1, max: 60 },
     zones: {
@@ -27,19 +27,12 @@ const settingSchema = new mongoose.Schema(
       onSegeraJual: { type: Boolean, default: true },
       onTidakLayak: { type: Boolean, default: true },
       onOffline: { type: Boolean, default: true },
-      onLowBattery: { type: Boolean, default: true },
-      whatsapp: {
-        enabled: { type: Boolean, default: false },
-        recipients: { type: [String], default: [] }, // nomor tujuan, format 62812...
-      },
     },
     thresholds: {
       tvoc: limits(200, 400), // ppb
       suhu: limits(25, 30), // °C
       rh: limits(75, 85), // %
     },
-    // Penanda internal: kapan peringatan WhatsApp "baterai lemah" terakhir dikirim (null = belum / sudah diisi ulang).
-    batteryLowNotifiedAt: { type: Date, default: null },
     business: {
       batchKg: { type: Number, default: 10 }, // berat tahu per sesi
       pricePerKg: { type: Number, default: 15000 }, // Rp

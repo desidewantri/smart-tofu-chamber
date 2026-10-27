@@ -21,9 +21,24 @@ exports.list = asyncHandler(async (req, res) => {
       const s = activeBy.get(c.chamberId);
       return { ...view, sesiSaatIni: s ? s.sesiCode : null };
     })
-    .filter((c) => !q || c.name.toLowerCase().includes(q));
+    .filter((c) => !q || c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
 
   res.json({ success: true, data: items });
+});
+
+exports.create = asyncHandler(async (req, res) => {
+  const name = String(req.body?.name || '').trim();
+  if (!name) throw new ApiError(400, 'Nama chamber wajib diisi');
+  const last = await Chamber.findOne().sort({ chamberId: -1 }).select('chamberId').lean();
+  const chamberId = (last?.chamberId || 0) + 1;
+  const chamber = await Chamber.create({
+    chamberId,
+    code: Chamber.codeFor(chamberId),
+    name,
+    enabled: req.body?.enabled !== false,
+  });
+  const settings = await SystemSetting.get();
+  res.status(201).json({ success: true, message: `Chamber ${chamber.code} ditambahkan`, data: chamberView(chamber, settings) });
 });
 
 exports.detail = asyncHandler(async (req, res) => {

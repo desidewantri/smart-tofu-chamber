@@ -55,7 +55,7 @@ exports.list = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { items: views, total, page, limit, pages: Math.max(1, Math.ceil(total / limit)) } });
 });
 
-/** GET /api/sesi/:id  (ObjectId atau kode CH-001): detail + statistik + deret waktu */
+/** GET /api/sesi/:id  (ObjectId atau kode SES-001): detail + statistik + deret waktu */
 exports.detail = asyncHandler(async (req, res) => {
   const settings = await SystemSetting.get();
   const session = await findSession(req.params.id);

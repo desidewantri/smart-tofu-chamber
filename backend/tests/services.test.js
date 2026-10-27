@@ -127,29 +127,3 @@ test('buildInterpretation menyebut parameter bermasalah dan disclaimer', () => {
   assert.match(text, /bukan pengukuran langsung/);
   assert.match(analysis.buildInterpretation(null, null), /Belum ada data/);
 });
-
-const { normalizePhone } = require('../src/services/whatsappService');
-const { buildMessage, formatRemaining } = require('../src/services/notifierService');
-
-test('normalizePhone menyeragamkan format nomor Indonesia', () => {
-  assert.equal(normalizePhone('0812-3456-7890'), '6281234567890');
-  assert.equal(normalizePhone('+62 812 3456 7890'), '6281234567890');
-  assert.equal(normalizePhone('81234567890'), '6281234567890');
-  assert.equal(normalizePhone('12345'), null);
-  assert.equal(normalizePhone(''), null);
-});
-
-test('buildMessage menyusun pesan Segera Jual dengan sisa waktu dan sensor', () => {
-  const msg = buildMessage({
-    kind: 'segeraJual', chamberName: 'Chamber 1', sesiCode: 'CH-061', sisaDetik: 7 * 3600 + 50 * 60,
-    reading: { suhu: 20.14, rh: 72, tvoc: 309.4 }, zones: { segarHours: 24, rawanHours: 8 },
-  });
-  assert.match(msg, /Chamber 1/);
-  assert.match(msg, /CH-061/);
-  assert.match(msg, /Segera Jual/);
-  assert.match(msg, /±7 jam/);
-  assert.doesNotMatch(msg, /menit/);
-  assert.match(msg, /Suhu 20,1 °C/);
-  assert.equal(formatRemaining(-5), 'kurang dari 1 jam');
-  assert.equal(formatRemaining(6 * 3600 + 59 * 60), '±6 jam');
-});

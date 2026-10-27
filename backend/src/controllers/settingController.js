@@ -1,8 +1,6 @@
 const SystemSetting = require('../models/SystemSetting');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
-const env = require('../config/env');
-const { normalizePhone, isConfigured } = require('../services/whatsappService');
 
 const ALLOWED = [
   'appName',
@@ -29,8 +27,6 @@ function flatten(obj, prefix = '', out = {}) {
 const toObj = (doc) => {
   const o = doc.toObject();
   delete o.__v;
-  // Info untuk halaman Pengaturan: apakah backend siap mengirim WhatsApp (token tidak pernah dikirim ke browser).
-  o.whatsappStatus = { configured: isConfigured(), dryRun: env.whatsapp.dryRun, provider: env.whatsapp.provider };
   return o;
 };
 
@@ -69,19 +65,6 @@ exports.update = asyncHandler(async (req, res) => {
         throw new ApiError(400, `Batas "perhatian" ${param} harus lebih besar dari batas "aman"`);
       }
     });
-  }
-
-  const wa = picked.notifications && picked.notifications.whatsapp;
-  if (wa && wa.recipients !== undefined) {
-    if (!Array.isArray(wa.recipients)) throw new ApiError(400, 'Daftar nomor WhatsApp harus berupa daftar');
-    const clean = [];
-    wa.recipients.forEach((r) => {
-      const p = normalizePhone(r);
-      if (!p) throw new ApiError(400, `Nomor WhatsApp tidak valid: ${r}`);
-      if (!clean.includes(p)) clean.push(p);
-    });
-    if (clean.length > 5) throw new ApiError(400, 'Maksimal 5 nomor WhatsApp');
-    wa.recipients = clean;
   }
 
   const doc = await SystemSetting.findOneAndUpdate(

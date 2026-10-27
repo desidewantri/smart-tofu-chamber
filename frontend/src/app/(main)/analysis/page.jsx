@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/services/api';
-import { useI18n } from '@/context/I18nContext';
 import { usePolling } from '@/lib/hooks';
 import { PERIOD_OPTIONS } from '@/lib/utils';
 import Tabs from '@/components/common/Tabs';
@@ -14,12 +13,11 @@ import SeasonalAnalysisTab from '@/components/analysis/SeasonalAnalysisTab';
 
 const TABS = [
   { id: 'kondisi', label: 'Analisis Kondisi' },
-  { id: 'biaya', label: 'Biaya dan Manfaat' },
+  { id: 'biaya', label: 'Biaya & Manfaat' },
   { id: 'musiman', label: 'Analisis Musiman' },
 ];
 
 function AnalysisInner() {
-  const { t } = useI18n();
   const params = useSearchParams();
   const { data: chambers, error, loading, reload } = usePolling(() => api.getChambers(), 0, []);
   const [chamberId, setChamberId] = useState(params.get('chamber') || '');
@@ -40,7 +38,7 @@ function AnalysisInner() {
 
   if (loading && !chambers) return <Loading />;
   if (error && !chambers) return <ErrorState error={error} onRetry={reload} />;
-  if (!chambers?.length) return <div className="card"><EmptyState title="Belum ada chamber" description="Tambahkan chamber di halaman Chamber." /></div>;
+  if (!chambers?.length) return <div className="card"><EmptyState title="Belum ada chamber" description="Tambahkan chamber di halaman Chambers." /></div>;
 
   const periods = tab === 'kondisi' ? PERIOD_OPTIONS.slice(0, 3) : tab === 'biaya' ? PERIOD_OPTIONS.slice(2) : PERIOD_OPTIONS.slice(3);
 
@@ -48,18 +46,18 @@ function AnalysisInner() {
     <div className="space-y-6">
       <div className="card grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
         <div>
-          <label htmlFor="chamber" className="label">{t('Pilih Chamber')}</label>
+          <label htmlFor="chamber" className="label">Pilih Chamber</label>
           <select id="chamber" className="input" value={chamberId} onChange={(e) => setChamberId(e.target.value)}>
-            {tab !== 'kondisi' && <option value="all">{t('Semua Chamber')}</option>}
+            {tab !== 'kondisi' && <option value="all">Semua Chamber</option>}
             {chambers.map((c) => (
-              <option key={c.chamberId} value={c.chamberId}>{c.name}</option>
+              <option key={c.chamberId} value={c.chamberId}>{c.code} · {c.name}</option>
             ))}
           </select>
         </div>
         <div>
-          <label htmlFor="period" className="label">{t('Pilih Periode')}</label>
+          <label htmlFor="period" className="label">Pilih Periode</label>
           <select id="period" className="input" value={period} onChange={(e) => setPeriod(e.target.value)}>
-            {periods.map((p) => <option key={p.value} value={p.value}>{t(p.label)}</option>)}
+            {periods.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
         </div>
       </div>

@@ -17,7 +17,7 @@ function errorHandler(err, _req, res, _next) {
     message = `Nilai tidak valid untuk ${err.path}`;
   } else if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
     status = 401;
-    message = 'Sesi masuk tidak valid atau sudah kedaluwarsa';
+    message = 'Sesi login tidak valid atau sudah kedaluwarsa';
   } else if (err.code === 11000) {
     status = 409;
     message = 'Data sudah ada (duplikat)';

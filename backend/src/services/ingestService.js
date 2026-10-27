@@ -4,7 +4,6 @@ const SensorReading = require('../models/SensorReading');
 const Prediction = require('../models/Prediction');
 const ApiError = require('../utils/ApiError');
 const predictionService = require('./predictionService');
-const { parseBattery } = require('../utils/battery');
 
 const HISTORY_WINDOW = 12; // W = 12 langkah (60 menit) untuk LSTM
 
@@ -23,7 +22,7 @@ function validatePayload(p, topicChamberId) {
   const suhu = num(p.suhu ?? p.temperature);
   const rh = num(p.rh ?? p.humidity);
 
-  if (!Number.isInteger(chamberId) || chamberId < 1 || chamberId > MAX_CHAMBERS) throw new ApiError(400, `chamber_id harus 1 sampai ${MAX_CHAMBERS} (hanya ada ${MAX_CHAMBERS} chamber)`);
+  if (!Number.isInteger(chamberId) || chamberId < 1) throw new ApiError(400, 'chamber_id harus bilangan bulat >= 1');
   if (!Number.isFinite(tvoc) || tvoc < 0 || tvoc > 60000) throw new ApiError(400, 'tvoc harus 0-60000 ppb');
   if (!Number.isFinite(suhu) || suhu < -20 || suhu > 80) throw new ApiError(400, 'suhu di luar rentang (-20 s.d. 80 °C)');
   if (!Number.isFinite(rh) || rh < 0 || rh > 100) throw new ApiError(400, 'rh harus 0-100 %');
@@ -32,12 +31,8 @@ function validatePayload(p, topicChamberId) {
   if (Number.isNaN(timestamp.getTime()) || timestamp.getTime() > Date.now() + 24 * 3600 * 1000) {
     timestamp = new Date();
   }
-  const battery = parseBattery(p.battery ?? p.baterai ?? p.bat);
-  return { chamberId, tvoc, suhu, rh, timestamp, battery };
+  return { chamberId, tvoc, suhu, rh, timestamp };
 }
-
-/** Sistem hanya punya 2 kelompok sensor: Chamber 1 dan Chamber 2. */
-const MAX_CHAMBERS = 2;
 
 async function createSession(data) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -71,14 +66,13 @@ async function createSession(data) {
  * 3) panggil ML (atau mock) -> simpan Prediction
  * 4) update shelfLifeAwal & prediksiDibuat (t0) pada sesi
  */
-async function ingestReading(payload, { topicChamberId, seenAt } = {}) {
+async function ingestReading(payload, { topicChamberId } = {}) {
   const data = validatePayload(payload, topicChamberId);
 
   await Chamber.findOneAndUpdate(
     { chamberId: data.chamberId },
     {
-      // seenAt: untuk data impor (Sheet) dipakai waktu baris tersebut, bukan waktu sekarang.
-      $max: { lastSeenAt: seenAt ? new Date(Math.min(new Date(seenAt).getTime(), Date.now())) : new Date() },
+      $set: { lastSeenAt: new Date() },
       $setOnInsert: {
         code: Chamber.codeFor(data.chamberId),
         name: `Chamber ${data.chamberId}`,
@@ -87,13 +81,6 @@ async function ingestReading(payload, { topicChamberId, seenAt } = {}) {
     },
     { upsert: true, new: true }
   );
-  if (data.battery !== null) {
-    // Simpan baterai hanya bila data ini lebih baru dari nilai baterai yang tersimpan.
-    await Chamber.updateOne(
-      { chamberId: data.chamberId, $or: [{ batteryAt: null }, { batteryAt: { $lte: data.timestamp } }] },
-      { $set: { battery: data.battery, batteryAt: data.timestamp } }
-    );
-  }
 
   let session = await Session.findOne({ chamberId: data.chamberId, status: 'aktif' });
   if (!session) session = await createSession(data);
@@ -104,7 +91,6 @@ async function ingestReading(payload, { topicChamberId, seenAt } = {}) {
     tvoc: data.tvoc,
     suhu: data.suhu,
     rh: data.rh,
-    battery: data.battery,
     timestamp: data.timestamp,
   });
 
@@ -131,8 +117,7 @@ async function ingestReading(payload, { topicChamberId, seenAt } = {}) {
       history,
     });
 
-    // Data impor (Sheet): prediksi dicatat pada waktu baris tersebut agar grafik & hitung mundur sesuai.
-    const now = seenAt ? new Date(Math.min(new Date(seenAt).getTime(), Date.now())) : new Date();
+    const now = new Date();
     prediction = await Prediction.create({
       sesiId: session._id,
       chamberId: data.chamberId,

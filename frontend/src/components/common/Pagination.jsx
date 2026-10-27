@@ -1,8 +1,5 @@
-'use client';
-
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useI18n } from '@/context/I18nContext';
 
 function pageList(page, pages) {
   const set = new Set([1, pages, page, page - 1, page + 1]);
@@ -16,16 +13,15 @@ function pageList(page, pages) {
 }
 
 export default function Pagination({ page, pages, total, limit, onPage, onLimit }) {
-  const { t } = useI18n();
   const from = total === 0 ? 0 : (page - 1) * limit + 1;
   const to = Math.min(total, page * limit);
   return (
     <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 text-sm text-slate-500 sm:flex-row">
       <span>
-        {t('Menampilkan {from}–{to} dari {total} data', { from, to, total })}
+        Menampilkan {from}–{to} dari {total} data
       </span>
       <div className="flex items-center gap-2">
-        <button className="btn-outline !px-2.5 !py-1.5" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label={t('Sebelumnya')}>
+        <button className="btn-outline !px-2.5 !py-1.5" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Sebelumnya">
           <ChevronLeft className="h-4 w-4" />
         </button>
         {pageList(page, pages).map((p, i) =>
@@ -44,13 +40,13 @@ export default function Pagination({ page, pages, total, limit, onPage, onLimit 
             </button>
           )
         )}
-        <button className="btn-outline !px-2.5 !py-1.5" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label={t('Berikutnya')}>
+        <button className="btn-outline !px-2.5 !py-1.5" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label="Berikutnya">
           <ChevronRight className="h-4 w-4" />
         </button>
         <select className="input !w-auto !py-1.5" value={limit} onChange={(e) => onLimit(Number(e.target.value))}>
           {[5, 10, 20, 50].map((n) => (
             <option key={n} value={n}>
-              {t('{n} / halaman', { n })}
+              {n} / halaman
             </option>
           ))}
         </select>

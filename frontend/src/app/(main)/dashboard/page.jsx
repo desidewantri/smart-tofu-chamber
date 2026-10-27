@@ -1,71 +1,88 @@
 'use client';
 
-import { RefreshCw } from 'lucide-react';
+import Link from 'next/link';
+import { RefreshCw, Boxes } from 'lucide-react';
 import { api } from '@/services/api';
-import { useI18n } from '@/context/I18nContext';
 import { usePolling } from '@/lib/hooks';
-import { formatTime } from '@/lib/utils';
+import { formatTime, formatRelative } from '@/lib/utils';
 import ChamberCard from '@/components/dashboard/ChamberCard';
-import IdleChamberCard from '@/components/dashboard/IdleChamberCard';
-import GreetingCard from '@/components/dashboard/GreetingCard';
-import { ErrorState, Loading } from '@/components/common/States';
+import { EmptyState, ErrorState, Loading } from '@/components/common/States';
+import { ConnectionBadge } from '@/components/common/StatusBadge';
 
 export default function DashboardPage() {
-  const { t } = useI18n();
   const { data, error, loading, fetchedAt, reload } = usePolling(() => api.getDashboard(), 10000, []);
 
   if (loading && !data) return <Loading />;
   if (error && !data) return <ErrorState error={error} onRetry={reload} />;
 
   const { active, idle, zones, thresholds, updateIntervalMinutes } = data;
-  // Selalu 2 kartu: Chamber 1 dan Chamber 2 (kartu kosong bila belum ada sesi aktif).
-  const slots = [
-    ...active.map((card) => ({ id: card.chamber.chamberId, card })),
-    ...idle.map(({ chamber }) => ({ id: chamber.chamberId, chamber })),
-  ].sort((x, y) => x.id - y.id);
 
   return (
-    <div className="space-y-3">
-      <GreetingCard active={active} idle={idle} zones={zones} fetchedAt={fetchedAt} />
-
+    <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-[15px] font-bold text-brand-900">{t('Chamber Aktif')}</h2>
-          <p className="text-xs text-slate-500 [@media(max-height:700px)]:hidden">
-            {t('{n} chamber sedang menyimpan tahu · sensor mengirim data tiap {m} menit', { n: active.length, m: updateIntervalMinutes })}
+          <h2 className="text-2xl font-bold text-slate-900">Chambers Aktif</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            {active.length} chamber sedang menyimpan tahu · sensor mengirim data tiap {updateIntervalMinutes} menit
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500">
-          <span>{t('Diperbarui')} {formatTime(fetchedAt)}</span>
-          <button onClick={reload} className="btn-outline !px-3 !py-1.5 !text-[13px]" aria-label={t('Muat ulang')}>
-            <RefreshCw className="h-4 w-4" /> {t('Segarkan')}
+          <span>Diperbarui {formatTime(fetchedAt)}</span>
+          <button onClick={reload} className="btn-outline !px-3 !py-2" aria-label="Muat ulang">
+            <RefreshCw className="h-4 w-4" /> Segarkan
           </button>
         </div>
       </div>
 
       {error && (
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-inset ring-amber-600/20">
-          {t('Gagal memperbarui data terbaru')}: {t(error.message)}. {t('Menampilkan data terakhir yang berhasil dimuat.')}
+          Gagal memperbarui data terbaru: {error.message}. Menampilkan data terakhir yang berhasil dimuat.
         </p>
       )}
 
-      <div className="grid items-stretch gap-3 lg:grid-cols-2">
-        {slots.map((slot) =>
-          slot.card ? (
+      {active.length === 0 ? (
+        <div className="card">
+          <EmptyState
+            title="Belum ada sesi aktif"
+            description="Sesi dibuat otomatis saat sensor chamber mengirim data pertama. Jalankan simulator atau hubungkan perangkat ESP32."
+          />
+        </div>
+      ) : (
+        <div className="grid gap-6 xl:grid-cols-2">
+          {active.map((card) => (
             <ChamberCard
-              key={slot.id}
-              card={slot.card}
+              key={card.chamber.chamberId}
+              card={card}
               zones={zones}
               thresholds={thresholds}
               fetchedAt={fetchedAt}
               onChanged={reload}
             />
-          ) : (
-            <IdleChamberCard key={slot.id} chamber={slot.chamber} />
-          )
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
+      {idle.length > 0 && (
+        <section>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Chamber tanpa sesi aktif</h3>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {idle.map(({ chamber }) => (
+              <Link key={chamber.chamberId} href={`/chambers/${chamber.chamberId}`} className="card flex flex-col gap-3 p-4 transition hover:border-brand-600/40">
+                <span className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                    <Boxes className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-slate-900">{chamber.name}</span>
+                    <span className="block truncate text-xs text-slate-500">{chamber.code} · {formatRelative(chamber.lastSeenAt)}</span>
+                  </span>
+                </span>
+                <ConnectionBadge enabled={chamber.enabled} connected={chamber.connected} />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

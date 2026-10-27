@@ -1,10 +1,11 @@
 const ApiError = require('./ApiError');
 
-/** Terima "1" atau 1 (hanya ada Chamber 1 dan 2) */
+/** Terima "1", 1, atau "CH-001" -> 1 */
 function parseChamberId(param) {
   const s = String(param).trim();
-  const n = Number(s);
-  if (!Number.isInteger(n) || n < 1 || n > 2) throw new ApiError(400, 'ID chamber tidak valid');
+  const m = /^CH-0*(\d+)$/i.exec(s);
+  const n = m ? Number(m[1]) : Number(s);
+  if (!Number.isInteger(n) || n < 1) throw new ApiError(400, 'ID chamber tidak valid');
   return n;
 }
 

@@ -30,8 +30,10 @@ async function main() {
 
   const now = Date.now();
   await Chamber.insertMany([
-    { chamberId: 1, code: 'CHAMBER-1', name: 'Chamber 1', enabled: true, lastSeenAt: new Date(now) },
-    { chamberId: 2, code: 'CHAMBER-2', name: 'Chamber 2', enabled: true, lastSeenAt: new Date(now) },
+    { chamberId: 1, code: 'CH-001', name: 'Chamber 1', enabled: true, lastSeenAt: new Date(now) },
+    { chamberId: 2, code: 'CH-002', name: 'Chamber 2', enabled: true, lastSeenAt: new Date(now) },
+    { chamberId: 3, code: 'CH-003', name: 'Chamber 3', enabled: true, lastSeenAt: new Date(now - 2 * DAY) },
+    { chamberId: 4, code: 'CH-004', name: 'Chamber 4', enabled: false, lastSeenAt: null },
   ]);
 
   const rnd = mulberry32(20260524);
@@ -52,7 +54,7 @@ async function main() {
     const tsl = baseTslHours(tempC) * (0.92 + rnd() * 0.16);
     const exitFrac = 0.2 + rnd() * 0.8; // tahu diambil pada 20%-100% umur
     const age = Math.max(1, tsl * exitFrac);
-    const chamberId = (i % 2) + 1; // Chamber 1 atau 2
+    const chamberId = (i % 3) + 1; // chamber 1-3
     seq += 1;
 
     const sim = buildSession({

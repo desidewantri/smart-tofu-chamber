@@ -1,16 +1,18 @@
 import { cn } from '@/lib/utils';
 
-/** Logo TOSCHA: chamber tahu dengan sensor (file gambar di public/icons). */
-export function LogoMark({ className = 'h-10 w-10', rounded = 'rounded-xl' }) {
+/** Ikon logo: kubus tahu dengan tetes sensor. Gambar asli buatan sendiri. */
+export function LogoMark({ className = 'h-10 w-10', rounded = 'rounded-xl', variant = 'solid' }) {
+  const light = variant === 'light';
+  const cube = light ? '#16a34a' : '#ffffff';
+  const edge = light ? '#ffffff' : '#16a34a';
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/icons/logo-256.png"
-      alt="TOSCHA"
-      width={256}
-      height={256}
-      className={cn('inline-block shrink-0 object-contain', rounded, className)}
-    />
+    <span className={cn('inline-flex items-center justify-center shadow-sm', light ? 'bg-white' : 'bg-brand-600', rounded, className)}>
+      <svg viewBox="0 0 32 32" className="h-3/5 w-3/5" fill="none" aria-hidden="true">
+        <path d="M16 4 6 9.5v11L16 26l10-5.5v-11L16 4Z" fill={cube} />
+        <path d="M6 9.5 16 15l10-5.5M16 15v11" stroke={edge} strokeWidth="1.6" strokeLinejoin="round" />
+        <circle cx="16" cy="9.6" r="1.4" fill={edge} />
+      </svg>
+    </span>
   );
 }
 
