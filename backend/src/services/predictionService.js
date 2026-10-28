@@ -18,11 +18,14 @@ function normalizeModel(name) {
  *   resp : { shelf_life_hours: number, model_used: "random_forest" | "lstm" | "hybrid" }
  *          (alias yang diterima: shelfLifeJam/shelf_life, model)
  */
+// Fitur tambahan khusus model mock tidak dikirim ke ml-service (kontraknya tetap seperti semula).
+const withoutFeatures = ({ features, ...rest }) => rest;
+
 async function callLive(input) {
   const res = await fetch(`${env.ml.url}/predict`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify(withoutFeatures(input)),
     signal: AbortSignal.timeout(env.ml.timeoutMs),
   });
   if (!res.ok) throw new Error(`ml-service membalas HTTP ${res.status}`);

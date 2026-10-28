@@ -7,6 +7,7 @@ const predictionService = require('./predictionService');
 const { parseBattery } = require('../utils/battery');
 
 const HISTORY_WINDOW = 12; // W = 12 langkah (60 menit) untuk LSTM
+const FEATURE_WINDOW = 30; // ±2,5 jam data terakhir untuk fitur model mock
 
 function num(v) {
   if (v === null || v === undefined || v === '') return NaN;
@@ -115,11 +116,26 @@ async function ingestReading(payload, { topicChamberId, seenAt } = {}) {
   try {
     const recent = await SensorReading.find({ sesiId: session._id })
       .sort({ timestamp: -1 })
-      .limit(HISTORY_WINDOW)
+      .limit(FEATURE_WINDOW)
       .lean();
+    recent.reverse();
     const history = recent
-      .reverse()
+      .slice(-HISTORY_WINDOW)
       .map((r) => ({ tvoc: r.tvoc, suhu: r.suhu, rh: r.rh, timestamp: r.timestamp }));
+
+    // Fitur untuk model mock: umur sesi, baseline TVOC (nilai terendah sesi), suhu rata-rata, TVOC 1,5 jam terakhir.
+    const t0 = new Date(session.masuk).getTime();
+    const hoursOf = (ts) => (new Date(ts).getTime() - t0) / 3600000;
+    const lowest = await SensorReading.findOne({ sesiId: session._id }).sort({ tvoc: 1 }).select('tvoc').lean();
+    const suhuMean = recent.reduce((acc, r) => acc + r.suhu, 0) / Math.max(1, recent.length);
+    const nowH = hoursOf(data.timestamp);
+    const features = {
+      hours: Math.max(0, nowH),
+      tvocBaseline: lowest ? lowest.tvoc : data.tvoc,
+      tempMean: recent.length ? suhuMean : data.suhu,
+      readings: nT,
+      recent: recent.filter((r) => hoursOf(r.timestamp) >= nowH - 1.5).map((r) => ({ hours: hoursOf(r.timestamp), tvoc: r.tvoc })),
+    };
 
     const result = await predictionService.predict({
       chamber_id: data.chamberId,
@@ -129,6 +145,7 @@ async function ingestReading(payload, { topicChamberId, seenAt } = {}) {
       rh: data.rh,
       n_t: nT,
       history,
+      features,
     });
 
     // Data impor (Sheet): prediksi dicatat pada waktu baris tersebut agar grafik & hitung mundur sesuai.
