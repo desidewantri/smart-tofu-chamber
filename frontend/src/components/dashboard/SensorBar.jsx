@@ -5,7 +5,7 @@ import { ZonePill } from '@/components/common/StatusBadge';
 import { ZONE_STYLES, cn } from '@/lib/utils';
 import { SHOW_SENSOR_ZONES } from '@/lib/features';
 
-/** Warna bar netral saat label zona disembunyikan. */
+/** Bar zona ikut disembunyikan saat label zona dimatikan (lihat lib/features.js). */
 const NEUTRAL_BAR = 'bg-brand-500';
 
 /** Satu baris sensor: ikon, nilai, bar zona, dan label Aman/Perhatian/Bahaya. */
@@ -27,9 +27,11 @@ export default function SensorBar({ icon: Icon, label, reading, limits, decimals
             {Number(reading.value).toFixed(decimals)} <span className="text-xs font-medium text-slate-500">{reading.unit}</span>
           </span>
         </div>
-        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
-          <div className={cn('h-full rounded-full transition-all duration-500', style?.bar)} style={{ width: `${pct}%` }} />
-        </div>
+        {SHOW_SENSOR_ZONES && (
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className={cn('h-full rounded-full transition-all duration-500', style?.bar)} style={{ width: `${pct}%` }} />
+          </div>
+        )}
       </div>
       {SHOW_SENSOR_ZONES && (
         <div className="w-[76px] text-right">
@@ -58,9 +60,11 @@ export function SensorTile({ icon: Icon, label, reading, limits, decimals = 0 })
       <p className="mt-0.5 text-lg font-bold tabular-nums leading-tight text-slate-900">
         {Number(reading.value).toFixed(decimals)} <span className="text-xs font-medium text-slate-500">{reading.unit}</span>
       </p>
-      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
-        <div className={cn('h-full rounded-full transition-all duration-500', style?.bar)} style={{ width: `${pct}%` }} />
-      </div>
+      {SHOW_SENSOR_ZONES && (
+        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+          <div className={cn('h-full rounded-full transition-all duration-500', style?.bar)} style={{ width: `${pct}%` }} />
+        </div>
+      )}
     </div>
   );
 }
