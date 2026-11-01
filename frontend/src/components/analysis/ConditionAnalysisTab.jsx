@@ -7,6 +7,7 @@ import { api } from '@/services/api';
 import { usePolling, useCountdown } from '@/lib/hooks';
 import { classifyShelfLife, cn, formatHoursLeft, STATUS_STYLES, NEUTRAL_STYLE } from '@/lib/utils';
 import { StatusBadge, ZonePill } from '@/components/common/StatusBadge';
+import { SHOW_SENSOR_ZONES } from '@/lib/features';
 import { EmptyState, ErrorState, Loading } from '@/components/common/States';
 import ShelfLifeChart from '@/components/dashboard/ShelfLifeChart';
 
@@ -52,12 +53,12 @@ function Body({ d, zones, fetchedAt }) {
             <div key={key} className="card p-5">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-sm font-semibold text-slate-600"><Icon className="h-4 w-4" /> {t(label)}</span>
-                {r && <ZonePill zone={r.zone} />}
+                {SHOW_SENSOR_ZONES && r && <ZonePill zone={r.zone} />}
               </div>
               <p className="mt-3 text-3xl font-bold tabular-nums text-slate-900">
                 {r ? Number(r.value).toFixed(decimals) : '—'} <span className="text-base font-medium text-slate-500">{r?.unit}</span>
               </p>
-              <p className="mt-3 text-xs leading-relaxed text-slate-500">{t(d.risks?.[key])}</p>
+              {SHOW_SENSOR_ZONES && <p className="mt-3 text-xs leading-relaxed text-slate-500">{t(d.risks?.[key])}</p>}
             </div>
           );
         })}

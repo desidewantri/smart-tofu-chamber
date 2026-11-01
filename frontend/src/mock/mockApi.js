@@ -3,6 +3,7 @@
  * Data hilang saat halaman di-refresh (disengaja, ini hanya mode demo).
  */
 import { buildInitialState, tvocAt } from './mockData';
+import { SHOW_SENSOR_ZONES } from '@/lib/features';
 
 let state = null;
 const S = () => {
@@ -146,11 +147,12 @@ function interpretation(status, sensors) {
       : status === 'Segera Konsumsi'
       ? 'Perkiraan sisa umur simpan mulai terbatas; sebaiknya tahu segera dikonsumsi.'
       : 'Perkiraan sisa umur simpan sangat singkat; tahu tidak layak dikonsumsi dan perlu segera dikeluarkan.';
-  const detail = bad.length
+  const zoneDetail = bad.length
     ? ` Parameter yang melewati batas: ${bad.join(', ')}.`
     : warn.length
     ? ` Parameter yang perlu diperhatikan: ${warn.join(', ')}.`
     : ' Seluruh parameter berada dalam batas aman.';
+  const detail = SHOW_SENSOR_ZONES ? zoneDetail : '';
   return `${lead}${detail} TVOC, suhu, dan kelembapan adalah parameter yang berkontribusi pada prediksi model, bukan pengukuran langsung terhadap kondisi mikrobiologis tahu.`;
 }
 

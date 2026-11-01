@@ -22,6 +22,13 @@ const round = (x, d = 2) => (x === null || x === undefined ? null : Math.round(x
 
 const PARAM_LABEL = { tvoc: 'TVOC', suhu: 'Suhu', rh: 'Kelembapan' };
 
+/**
+ * Kalimat zona sensor (Aman / Perhatian / Bahaya) di interpretasi disembunyikan karena
+ * ambang batas sensor belum ditetapkan dari data uji. Logikanya tetap ada; ubah ke true
+ * untuk menampilkannya lagi (samakan dengan SHOW_SENSOR_ZONES di frontend/src/lib/features.js).
+ */
+const SHOW_SENSOR_ZONES = false;
+
 function riskNote(param, zone) {
   const name = PARAM_LABEL[param];
   if (zone === 'Aman') return `${name} berada dalam batas aman; kontribusi terhadap risiko penurunan kualitas rendah.`;
@@ -46,11 +53,12 @@ function buildInterpretation(status, sensors) {
   else if (status === STATUS.SEGERA) lead = 'Perkiraan sisa umur simpan mulai terbatas; sebaiknya tahu segera dikonsumsi.';
   else lead = 'Perkiraan sisa umur simpan sangat singkat; tahu tidak layak dikonsumsi dan perlu segera dikeluarkan.';
 
-  const detail = bad.length
+  const zoneDetail = bad.length
     ? ` Parameter yang melewati batas: ${bad.join(', ')}.`
     : warn.length
     ? ` Parameter yang perlu diperhatikan: ${warn.join(', ')}.`
     : ' Seluruh parameter berada dalam batas aman.';
+  const detail = SHOW_SENSOR_ZONES ? zoneDetail : '';
 
   return (
     `${lead}${detail} TVOC, suhu, dan kelembapan adalah parameter yang berkontribusi pada prediksi model, ` +

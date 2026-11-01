@@ -482,6 +482,10 @@ export const PATTERNS = [
       return `${tr(m[1])} ${detail} ${tr(m[5])}`;
     },
   ],
+  [
+    /^(Perkiraan sisa umur simpan.*?\.) (TVOC, suhu, dan kelembapan adalah parameter.*)$/,
+    (m, tr) => `${tr(m[1])} ${tr(m[2])}`,
+  ],
   [/^Berat tahu per sesi (\S+) kg, harga Rp([\d.,]+)\/kg\.$/, (m) => `Tofu weight per session ${m[1]} kg, price Rp${m[2].replace(/\./g, ',')}/kg.`],
   [/^Tahu "Segera Konsumsi" dijual dengan diskon (\d+)%; "Tidak Layak Konsumsi" dianggap tidak terjual\.$/, (m) => `“Consume Soon” tofu is sold at a ${m[1]}% discount; “Not Fit to Consume” tofu is counted as unsold.`],
   [/^Tanpa sistem diasumsikan (\d+)% tahu terbuang \(asumsi, perlu divalidasi dengan data produsen\)\.$/, (m) => `Without the system, ${m[1]}% of tofu is assumed to be wasted (an assumption that needs validating with producer data).`],

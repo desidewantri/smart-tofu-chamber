@@ -4,6 +4,8 @@
  * jadi materi menyebut TVOC sebagai parameter pendukung prediksi, bukan ukuran langsung bakteri.
  */
 
+import { SHOW_SENSOR_ZONES, SHOW_THRESHOLD_SETTINGS } from '@/lib/features';
+
 export const STEPS = [
   {
     icon: 'login',
@@ -101,8 +103,12 @@ export const STEPS = [
     href: '/settings',
     title: { id: 'Atur sistem', en: 'Configure the system' },
     body: {
-      id: 'Di Pengaturan Anda dapat mengubah interval, zona status, batas parameter sensor, notifikasi, asumsi biaya, serta nama dan kata sandi akun.',
-      en: 'In Settings you can change the interval, status zones, sensor parameter limits, notifications, cost assumptions, and your account name and password.',
+      id: SHOW_THRESHOLD_SETTINGS
+        ? 'Di Pengaturan Anda dapat mengubah interval, zona status, batas parameter sensor, notifikasi, asumsi biaya, serta nama dan kata sandi akun.'
+        : 'Di Pengaturan Anda dapat mengubah interval, zona status, notifikasi, asumsi biaya, serta nama dan kata sandi akun.',
+      en: SHOW_THRESHOLD_SETTINGS
+        ? 'In Settings you can change the interval, status zones, sensor parameter limits, notifications, cost assumptions, and your account name and password.'
+        : 'In Settings you can change the interval, status zones, notifications, cost assumptions, and your account name and password.',
     },
     tips: [
       { id: 'Ikon lonceng di atas menampilkan notifikasi Segera Konsumsi, Tidak Layak Konsumsi, dan chamber terputus.', en: 'The bell icon at the top shows Consume soon, Not fit to consume, and disconnected chamber alerts.' },
@@ -179,16 +185,22 @@ export const TOPICS = [
   },
   {
     icon: 'zone',
-    title: { id: 'Zona status dan zona sensor', en: 'Status zones and sensor zones' },
+    title: SHOW_SENSOR_ZONES
+      ? { id: 'Zona status dan zona sensor', en: 'Status zones and sensor zones' }
+      : { id: 'Zona status', en: 'Status zones' },
     body: [
       {
         id: 'Status tahu ditentukan dari sisa umur simpan: Layak Konsumsi (lebih dari 24 jam), Segera Konsumsi (8 sampai 24 jam), dan Tidak Layak Konsumsi (kurang dari 8 jam).',
         en: 'Tofu status is decided by the remaining shelf life: Fit to consume (over 24 hours), Consume soon (8 to 24 hours), and Not fit to consume (under 8 hours).',
       },
-      {
-        id: 'Setiap sensor juga diberi label Aman, Perhatian, atau Bahaya. Batas awalnya hanya titik mulai, bukan ambang ilmiah, dan sebaiknya disesuaikan dengan data uji laboratorium.',
-        en: 'Each sensor also gets a Safe, Caution, or Danger label. The starting limits are only a starting point, not scientific thresholds, and should be adjusted using laboratory test data.',
-      },
+      ...(SHOW_SENSOR_ZONES
+        ? [
+          {
+            id: 'Setiap sensor juga diberi label Aman, Perhatian, atau Bahaya. Batas awalnya hanya titik mulai, bukan ambang ilmiah, dan sebaiknya disesuaikan dengan data uji laboratorium.',
+            en: 'Each sensor also gets a Safe, Caution, or Danger label. The starting limits are only a starting point, not scientific thresholds, and should be adjusted using laboratory test data.',
+          },
+          ]
+        : []),
     ],
   },
   {

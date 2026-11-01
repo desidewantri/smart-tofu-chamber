@@ -10,13 +10,16 @@ import GeneralSettingsTab from '@/components/settings/GeneralSettingsTab';
 import NotificationSettingsTab from '@/components/settings/NotificationSettingsTab';
 import ThresholdSettingsTab from '@/components/settings/ThresholdSettingsTab';
 import AccountSettingsTab from '@/components/settings/AccountSettingsTab';
+import { SHOW_THRESHOLD_SETTINGS } from '@/lib/features';
 
-const TABS = [
+const ALL_TABS = [
   { id: 'umum', label: 'Umum' },
   { id: 'notifikasi', label: 'Notifikasi' },
   { id: 'batas', label: 'Batas Parameter' },
   { id: 'akun', label: 'Akun' },
 ];
+// Tab "Batas Parameter" disembunyikan sampai ambang batas sensor ditetapkan (lihat lib/features.js).
+const TABS = ALL_TABS.filter((tb) => tb.id !== 'batas' || SHOW_THRESHOLD_SETTINGS);
 
 export default function SettingsPage() {
   const [tab, setTab] = useState('umum');
@@ -46,7 +49,7 @@ export default function SettingsPage() {
       <div key={tab} className="animate-fade-in">
         {tab === 'umum' && <GeneralSettingsTab settings={settings} onSave={save} />}
         {tab === 'notifikasi' && <NotificationSettingsTab settings={settings} onSave={save} />}
-        {tab === 'batas' && <ThresholdSettingsTab settings={settings} onSave={save} />}
+        {SHOW_THRESHOLD_SETTINGS && tab === 'batas' && <ThresholdSettingsTab settings={settings} onSave={save} />}
         {tab === 'akun' && <AccountSettingsTab />}
       </div>
     </div>
