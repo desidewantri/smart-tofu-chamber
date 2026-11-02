@@ -9,3 +9,10 @@
 		reverse_proxy frontend:3000
 	}
 }
+
+# Aplikasi lain di VPS yang sama: GamaTutor (folder ~/gamatutor, compose sendiri).
+# Isi GT_DOMAIN di .env server. Bila tidak diisi, dipakai gamatutor.localhost (tidak berpengaruh ke internet).
+{$GT_DOMAIN:gamatutor.localhost} {
+	encode zstd gzip
+	reverse_proxy gamatutor:3000
+}
