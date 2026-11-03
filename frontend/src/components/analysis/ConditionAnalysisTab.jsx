@@ -72,8 +72,8 @@ function recommendations(status, live, untilDay) {
 
 function Kpi({ label, children, className }) {
   return (
-    <div className={cn('card p-5', className)}>
-      <p className="text-sm font-semibold text-slate-600">{label}</p>
+    <div className={cn('card px-4 py-3.5', className)}>
+      <p className="text-xs font-semibold text-slate-500">{label}</p>
       {children}
     </div>
   );
@@ -94,6 +94,9 @@ function Body({ d, zones, fetchedAt }) {
   // "Perkiraan Tidak Layak" = saat status berubah ke Tidak Layak Konsumsi (sisa umur < Batas Rawan).
   const toTidakSec = (seconds ?? 0) - zones.rawanHours * 3600;
   const until = live && toTidakSec > 0 ? whenText(nowMs + toTidakSec * 1000) : null;
+  // Bila sudah lewat: kapan status pertama kali berubah ke Tidak Layak (prediksi pertama < Batas Rawan).
+  const firstBad = !until ? (d.trend || []).find((p) => p.shelfLife < zones.rawanHours) : null;
+  const passedAt = firstBad ? whenText(masukMs + firstBad.elapsedHours * 3600000) : null;
   const untilText = until ? `${until.day} ±${until.time}` : '';
   const q = d.dataQuality;
 
@@ -105,31 +108,36 @@ function Body({ d, zones, fetchedAt }) {
         </p>
       )}
 
-      {/* Ringkasan */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className={cn('rounded-2xl border-2 p-5 shadow-card', style.card)}>
-          <p className="text-sm font-semibold text-slate-600">{t('Status Saat Ini')}</p>
-          <div className="mt-3"><StatusBadge status={status} className="!px-3.5 !py-1.5 !text-sm" /></div>
-          <p className="mt-3 text-xs text-slate-500">
+      {/* Ringkasan (kartu kecil) */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className={cn('rounded-2xl border-2 px-4 py-3.5 shadow-card', style.card)}>
+          <p className="text-xs font-semibold text-slate-500">{t('Status Saat Ini')}</p>
+          <div className="mt-1.5"><StatusBadge status={status} /></div>
+          <p className="mt-1.5 text-xs text-slate-500">
             {t('Sesi')} {d.session.sesiCode} · {d.chamber?.name || `Chamber ${d.session.chamberId}`}
           </p>
         </div>
         <Kpi label={t('Perkiraan Sisa Umur')}>
-          <p className={cn('mt-2 text-3xl font-bold tabular-nums', style.text)}>{formatHoursLeft(seconds ?? 0)}</p>
+          <p className={cn('mt-1 text-2xl font-bold tabular-nums', style.text)}>{formatHoursLeft(seconds ?? 0)}</p>
         </Kpi>
         <Kpi label={t('Perkiraan Tidak Layak')}>
           {until ? (
             <>
-              <p className="mt-2 text-xl font-bold capitalize text-slate-900">{until.day}</p>
+              <p className="mt-1 text-lg font-bold capitalize text-slate-900">{until.day}</p>
               <p className="text-xs text-slate-500">{t('sekitar pukul {t}', { t: until.time })}</p>
             </>
           ) : (
-            <p className="mt-2 text-xl font-bold text-red-700">{live ? t('Sudah tidak layak') : '—'}</p>
+            <>
+              <p className="mt-1 text-lg font-bold text-slate-900">{live ? t('Sudah lewat') : '—'}</p>
+              {passedAt && (
+                <p className="text-xs text-slate-500">{t('status berubah {d} ±{t}', { d: passedAt.day, t: passedAt.time })}</p>
+              )}
+            </>
           )}
         </Kpi>
         <Kpi label={t('Lama Disimpan')}>
-          <p className="mt-2 text-xl font-bold tabular-nums text-slate-900">{formatDurationLong(storedSec)}</p>
-          <p className="text-xs capitalize text-slate-500">{t('masuk {d}, {t}', { d: masuk.day, t: masuk.time })}</p>
+          <p className="mt-1 text-lg font-bold tabular-nums text-slate-900">{formatDurationLong(storedSec)}</p>
+          <p className="text-xs text-slate-500">{t('masuk {d}, {t}', { d: masuk.day, t: masuk.time })}</p>
         </Kpi>
       </div>
 
