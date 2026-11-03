@@ -173,3 +173,9 @@ test('dataQuality menghitung data hilang dari interval', () => {
   assert.equal(full.missing, 0);
   assert.equal(full.completeness, 100);
 });
+
+test('validatePayload menerima TVOC tinggi sampai batas AGS10 (99999 ppb), menolak di atasnya', () => {
+  assert.equal(validatePayload({ chamber_id: 1, tvoc: 87000, suhu: 30, rh: 90 }).tvoc, 87000);
+  assert.equal(validatePayload({ chamber_id: 1, tvoc: 99999, suhu: 30, rh: 90 }).tvoc, 99999);
+  assert.throws(() => validatePayload({ chamber_id: 1, tvoc: 100000, suhu: 30, rh: 90 }));
+});

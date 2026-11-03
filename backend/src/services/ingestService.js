@@ -15,6 +15,8 @@ function num(v) {
 }
 
 /** Validasi payload sensor (dari MQTT atau HTTP). Melempar ApiError 400 bila tidak valid. */
+const TVOC_MAX = 99999; // batas atas sensor AGS10 (ppb)
+
 function validatePayload(p, topicChamberId) {
   if (!p || typeof p !== 'object' || Array.isArray(p)) {
     throw new ApiError(400, 'Payload harus berupa objek JSON');
@@ -25,7 +27,9 @@ function validatePayload(p, topicChamberId) {
   const rh = num(p.rh ?? p.humidity);
 
   if (!Number.isInteger(chamberId) || chamberId < 1 || chamberId > MAX_CHAMBERS) throw new ApiError(400, `chamber_id harus 1 sampai ${MAX_CHAMBERS} (hanya ada ${MAX_CHAMBERS} chamber)`);
-  if (!Number.isFinite(tvoc) || tvoc < 0 || tvoc > 60000) throw new ApiError(400, 'tvoc harus 0-60000 ppb');
+  // Rentang ukur AGS10 adalah 0-99.999 ppb. Nilai tinggi justru muncul saat tahu membusuk,
+  // jadi tidak boleh ditolak (batas lama 60.000 membuang data paling penting).
+  if (!Number.isFinite(tvoc) || tvoc < 0 || tvoc > TVOC_MAX) throw new ApiError(400, `tvoc harus 0-${TVOC_MAX} ppb`);
   if (!Number.isFinite(suhu) || suhu < -20 || suhu > 80) throw new ApiError(400, 'suhu di luar rentang (-20 s.d. 80 °C)');
   if (!Number.isFinite(rh) || rh < 0 || rh > 100) throw new ApiError(400, 'rh harus 0-100 %');
 
