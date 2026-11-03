@@ -7,7 +7,10 @@ services:
     restart: unless-stopped
     volumes:
       - mongo-data:/data/db
-    # Tidak dibuka ke internet: hanya backend yang bisa mengakses.
+    # Tidak dibuka ke internet. Port hanya terikat ke 127.0.0.1 di server, supaya bisa dibuka
+    # dari laptop lewat SSH tunnel (MongoDB Compass): lihat tools/buka-tunnel-mongodb.bat
+    ports:
+      - "127.0.0.1:27017:27017"
 
   mosquitto:
     image: eclipse-mosquitto:2
