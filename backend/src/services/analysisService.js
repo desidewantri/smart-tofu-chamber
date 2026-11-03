@@ -157,6 +157,31 @@ function groupSeasonal(rows) {
   return { months, seasons, insight };
 }
 
+/** Rata-rata, minimum, dan maksimum satu parameter sepanjang sesi. */
+function seriesStats(values, d = 1) {
+  const v = values.filter((x) => typeof x === 'number' && Number.isFinite(x));
+  if (!v.length) return null;
+  return { avg: round(avg(v), d), min: round(Math.min(...v), d), max: round(Math.max(...v), d) };
+}
+
+/**
+ * Kualitas data sesi: jumlah pembacaan dibanding yang seharusnya masuk tiap `intervalMinutes`.
+ * startMs = waktu tahu masuk, endMs = sekarang (atau waktu sesi selesai).
+ */
+function dataQuality({ count, lastAt, startMs, endMs, intervalMinutes }) {
+  const minutes = Math.max(0, (endMs - startMs) / 60000);
+  const expected = Math.max(1, Math.floor(minutes / intervalMinutes) + 1);
+  const missing = Math.max(0, expected - count);
+  return {
+    readings: count,
+    lastReadingAt: lastAt || null,
+    intervalMinutes,
+    expected,
+    missing,
+    completeness: Math.min(100, Math.round((count / expected) * 100)),
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /* Fungsi yang membaca database                                        */
 /* ------------------------------------------------------------------ */
@@ -185,15 +210,46 @@ async function getCondition({ chamberId, period }) {
     risks: null,
     interpretation: buildInterpretation(null, null),
     trend: [],
+    history: [],
+    stats: null,
+    dataQuality: null,
   };
   if (!session) return base;
 
-  const [latest, preds] = await Promise.all([
+  const [latest, preds, readings] = await Promise.all([
     SensorReading.findOne({ sesiId: session._id }).sort({ timestamp: -1 }).lean(),
     Prediction.find({ sesiId: session._id, prediksiDibuat: { $gte: since } })
       .sort({ prediksiDibuat: 1 })
       .lean(),
+    SensorReading.find({ sesiId: session._id }, { tvoc: 1, suhu: 1, rh: 1, timestamp: 1 })
+      .sort({ timestamp: 1 })
+      .lean(),
   ]);
+
+  const masukMs = new Date(session.masuk).getTime();
+  const endMs = session.selesai ? new Date(session.selesai).getTime() : Date.now();
+  const history = downsample(
+    readings.map((r) => ({
+      elapsedHours: round((new Date(r.timestamp) - masukMs) / 3600000),
+      suhu: r.suhu,
+      rh: r.rh,
+      tvoc: r.tvoc,
+    }))
+  );
+  const stats = readings.length
+    ? {
+        suhu: seriesStats(readings.map((r) => r.suhu), 1),
+        rh: seriesStats(readings.map((r) => r.rh), 1),
+        tvoc: seriesStats(readings.map((r) => r.tvoc), 0),
+      }
+    : null;
+  const quality = dataQuality({
+    count: readings.length,
+    lastAt: readings.length ? readings[readings.length - 1].timestamp : null,
+    startMs: masukMs,
+    endMs,
+    intervalMinutes: settings.updateIntervalMinutes || 5,
+  });
 
   const sisa = remainingSeconds(session.toObject());
   const status = sisa === null ? null : classifyShelfLife(sisa / 3600, settings.zones);
@@ -221,6 +277,9 @@ async function getCondition({ chamberId, period }) {
     risks,
     interpretation: buildInterpretation(status, sensors),
     trend,
+    history,
+    stats,
+    dataQuality: quality,
   };
 }
 
@@ -253,6 +312,8 @@ module.exports = {
   periodToHours,
   buildInterpretation,
   riskNote,
+  seriesStats,
+  dataQuality,
   computeCostBenefit,
   groupSeasonal,
   seasonOf,

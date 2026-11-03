@@ -153,3 +153,23 @@ test('buildMessage menyusun pesan Segera Konsumsi dengan sisa waktu dan sensor',
   assert.equal(formatRemaining(-5), 'kurang dari 1 jam');
   assert.equal(formatRemaining(6 * 3600 + 59 * 60), '±6 jam');
 });
+
+/* ---- Analisis Kondisi: statistik sesi & kualitas data ---- */
+const { seriesStats, dataQuality } = require('../src/services/analysisService');
+
+test('seriesStats menghitung rata-rata, min, maks dan mengabaikan nilai kosong', () => {
+  const s = seriesStats([30, 31, null, 29, NaN], 1);
+  assert.deepEqual(s, { avg: 30, min: 29, max: 31 });
+  assert.equal(seriesStats([]), null);
+});
+
+test('dataQuality menghitung data hilang dari interval', () => {
+  const start = Date.UTC(2026, 10, 2, 20, 0);
+  const q = dataQuality({ count: 10, lastAt: null, startMs: start, endMs: start + 60 * 60000, intervalMinutes: 5 });
+  assert.equal(q.expected, 13);
+  assert.equal(q.missing, 3);
+  assert.equal(q.completeness, 77);
+  const full = dataQuality({ count: 20, lastAt: null, startMs: start, endMs: start + 60 * 60000, intervalMinutes: 5 });
+  assert.equal(full.missing, 0);
+  assert.equal(full.completeness, 100);
+});

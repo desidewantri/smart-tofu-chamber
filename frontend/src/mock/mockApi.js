@@ -374,11 +374,18 @@ export const mockApi = {
     const s =
       S().sessions.find((x) => x.chamberId === no && x.status === 'aktif') ||
       S().sessions.filter((x) => x.chamberId === no).sort((a, b) => b.masuk - a.masuk)[0];
-    const base = { chamber: chamberView(c), period: period || '24h', session: null, status: null, remainingSeconds: null, shelfLifeHours: null, modelUsed: null, sensors: null, risks: null, interpretation: interpretation(null, null), trend: [] };
+    const base = { chamber: chamberView(c), period: period || '24h', session: null, status: null, remainingSeconds: null, shelfLifeHours: null, modelUsed: null, sensors: null, risks: null, interpretation: interpretation(null, null), trend: [], history: [], stats: null, dataQuality: null };
     if (!s) return base;
     const v = sessionView(s);
-    const { readings, predictions } = series(s, 15);
+    const { readings, predictions } = series(s, 5);
     const ageNow = (Date.now() - s.masuk) / 3600000;
+    const stat = (k, d) => {
+      const v = readings.map((r) => r[k]);
+      return { avg: round(v.reduce((a, b) => a + b, 0) / v.length, d), min: round(Math.min(...v), d), max: round(Math.max(...v), d) };
+    };
+    const endMs = s.selesai || Date.now();
+    const interval = S().settings.updateIntervalMinutes || 5;
+    const expected = Math.max(1, Math.floor((endMs - s.masuk) / 60000 / interval) + 1);
     const sensors = sensorsOf(readings[readings.length - 1]);
     const status = v.statusLayak;
     const trend = predictions
@@ -395,6 +402,16 @@ export const mockApi = {
       risks: Object.fromEntries(Object.entries(sensors).map(([k, x]) => [k, riskNote(k, x.zone)])),
       interpretation: interpretation(status, sensors),
       trend,
+      history: readings.map((r) => ({ elapsedHours: round((new Date(r.timestamp).getTime() - s.masuk) / 3600000), suhu: r.suhu, rh: r.rh, tvoc: r.tvoc })),
+      stats: { suhu: stat('suhu', 1), rh: stat('rh', 1), tvoc: stat('tvoc', 0) },
+      dataQuality: {
+        readings: readings.length,
+        lastReadingAt: readings[readings.length - 1].timestamp,
+        intervalMinutes: interval,
+        expected,
+        missing: Math.max(0, expected - readings.length),
+        completeness: Math.min(100, Math.round((readings.length / expected) * 100)),
+      },
     };
   },
 
