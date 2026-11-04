@@ -76,7 +76,7 @@ async function createSession(data) {
  * 3) panggil ML (atau mock) -> simpan Prediction
  * 4) update shelfLifeAwal & prediksiDibuat (t0) pada sesi
  */
-async function ingestReading(payload, { topicChamberId, seenAt } = {}) {
+async function ingestReading(payload, { topicChamberId, seenAt, source = null } = {}) {
   const data = validatePayload(payload, topicChamberId);
 
   await Chamber.findOneAndUpdate(
@@ -111,6 +111,7 @@ async function ingestReading(payload, { topicChamberId, seenAt } = {}) {
     rh: data.rh,
     battery: data.battery,
     timestamp: data.timestamp,
+    source,
   });
 
   const nT = await SensorReading.countDocuments({ sesiId: session._id });

@@ -21,7 +21,7 @@ exports.listByChamber = asyncHandler(async (req, res) => {
 
 /** POST /api/sensor  (fallback HTTP selain MQTT; header x-api-key) */
 exports.ingest = asyncHandler(async (req, res) => {
-  const { reading, session, prediction, predictionError } = await ingestReading(req.body);
+  const { reading, session, prediction, predictionError } = await ingestReading(req.body, { source: 'http' });
   const settings = await SystemSetting.get();
   res.status(201).json({
     success: true,

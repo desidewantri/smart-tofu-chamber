@@ -26,6 +26,8 @@ module.exports = {
     username: process.env.MQTT_USERNAME || undefined,
     password: process.env.MQTT_PASSWORD || undefined,
     topic: process.env.MQTT_TOPIC || 'smartchamber/sensor/+',
+    // clientId tetap + sesi persisten: pesan yang datang saat backend restart disimpan broker.
+    clientId: process.env.MQTT_CLIENT_ID || 'toscha-backend',
   },
   auth: {
     // Izinkan siapa pun membuat akun lewat halaman Daftar (false = hanya admin yang bisa menambah akun)
@@ -49,6 +51,12 @@ module.exports = {
     tzOffset: process.env.SHEET_TZ_OFFSET || '+07:00', // waktu di Sheet = WIB
     dateOrder: (process.env.SHEET_DATE_ORDER || 'mdy').toLowerCase(), // mdy (10/22/2026) | dmy (22/10/2026)
     importSince: process.env.SHEET_IMPORT_SINCE || '', // opsional, mis. 2026-10-22T21:00:00+07:00
+    // primary  = Sheet sumber utama: semua baris baru diimpor (perilaku lama).
+    // fallback = MQTT sumber utama, Sheet cadangan: baris Sheet hanya diimpor bila data MQTT
+    //            untuk chamber & waktu yang sama TIDAK ada (alat mengirim ke keduanya).
+    mode: (process.env.SHEET_MODE || 'primary').toLowerCase() === 'fallback' ? 'fallback' : 'primary',
+    graceSec: Math.max(30, Number(process.env.SHEET_FALLBACK_GRACE_SEC) || 180), // tunggu data MQTT datang dulu
+    matchSec: Math.max(30, Number(process.env.SHEET_FALLBACK_MATCH_SEC) || 150), // selisih waktu yang dianggap data sama
   },
   ml: {
     mode: (process.env.ML_MODE || 'mock').toLowerCase(), // mock | live | auto

@@ -14,7 +14,8 @@ function start() {
   client = mqtt.connect(env.mqtt.url, {
     username: env.mqtt.username,
     password: env.mqtt.password,
-    clientId: `stc-backend-${process.pid}`,
+    clientId: env.mqtt.clientId,
+    clean: false, // sesi persisten: broker menyimpan pesan selama backend mati
     reconnectPeriod: 5000,
     connectTimeout: 10000,
   });
@@ -33,6 +34,7 @@ function start() {
       const m = /(\d+)$/.exec(topic);
       const { session, prediction } = await ingestReading(payload, {
         topicChamberId: m ? Number(m[1]) : undefined,
+        source: 'mqtt',
       });
       console.log(
         `[mqtt] ${topic} -> ${session.sesiCode}` +

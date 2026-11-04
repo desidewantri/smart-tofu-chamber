@@ -98,6 +98,17 @@ Baterai alat (opsional): tambahkan kolom `battery` (persen, mis. `72` atau `72%`
 Catatan: tekan "Tahu Sudah Keluar" pada sesi contoh dulu agar data Sheet masuk ke sesi baru. Jangan pakai MQTT dan Sheet untuk chamber yang sama sekaligus (data akan dobel).
 Impor ulang dari awal: `docker exec stc-mongo mongosh smart_tofu_chamber --quiet --eval "db.importcursors.deleteMany({})"`.
 
+## MQTT di server (ESP32 kirim ke MQTT dan Google Sheet)
+
+ESP32 (`firmware/toscha_esp32/toscha_esp32.ino`) mengirim setiap 5 menit ke **MQTT dan Google Sheet**.
+Backend memakai data MQTT; baris Sheet hanya diimpor bila data MQTT untuk chamber dan waktu itu tidak ada
+(`SHEET_MODE=fallback` di `backend/.env`). Sheet tetap lengkap untuk tim.
+
+- Broker: `infra/mosquitto/mosquitto.prod.conf` (wajib login, menyimpan pesan saat backend restart), port 1883.
+- File password: `deploy/mosquitto-passwd` (dibuat di server, tidak masuk git). User: `esp32` dan `backend`.
+- Kolom `source` di `sensorreadings` mencatat jalur data: `mqtt`, `sheet` (cadangan), atau `http`.
+- Cek: `docker compose -f docker-compose.prod.yml logs -f backend` → `[mqtt] terhubung`, `[mqtt] smartchamber/sensor/1 -> CH-...`.
+
 ## Server (VPS) dengan HTTPS
 
 Semua berjalan di Docker: MongoDB, Mosquitto, backend, frontend, dan Caddy (HTTPS otomatis).

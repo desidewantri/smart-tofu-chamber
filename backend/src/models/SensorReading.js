@@ -9,6 +9,8 @@ const sensorReadingSchema = new mongoose.Schema(
     rh: { type: Number, required: true }, // %
     battery: { type: Number, default: null }, // % baterai alat (opsional)
     timestamp: { type: Date, required: true },
+    // Jalur masuk data: mqtt | sheet | http (null = data lama sebelum kolom ini ada)
+    source: { type: String, enum: ['mqtt', 'sheet', 'http', null], default: null },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );

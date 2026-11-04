@@ -35,3 +35,19 @@ test('toCsvUrl mengubah link Sheet biasa menjadi link unduhan CSV', () => {
   const pub = 'https://docs.google.com/spreadsheets/d/e/2PACX-1/pub?gid=0&single=true&output=csv';
   assert.equal(s.toCsvUrl(pub), pub);
 });
+
+test('selectFresh: mode cadangan menunda baris terbaru dan tidak mengulang baris lama', () => {
+  const t = (m) => new Date(Date.UTC(2026, 10, 4, 6, m));
+  const rows = [
+    { chamberId: 1, timestamp: t(0) },
+    { chamberId: 1, timestamp: t(5) },
+    { chamberId: 2, timestamp: t(5) },
+    { chamberId: 1, timestamp: t(10) },
+  ];
+  // perilaku lama (tanpa cutoff): semua baris setelah cursor
+  assert.equal(s.selectFresh(rows, 1, { last: t(0) }).length, 2);
+  // cadangan: baris menit ke-10 masih ditunda (lebih baru dari cutoff)
+  const fb = s.selectFresh(rows, 1, { last: t(0), cutoff: t(7) });
+  assert.deepEqual(fb.map((r) => r.timestamp), [t(5)]);
+  assert.equal(s.selectFresh(rows, 2, {}).length, 1);
+});

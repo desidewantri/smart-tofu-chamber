@@ -15,11 +15,13 @@ services:
   mosquitto:
     image: eclipse-mosquitto:2
     restart: unless-stopped
+    # Dibuka untuk ESP32. Wajib login (allow_anonymous false), lihat infra/mosquitto/mosquitto.prod.conf.
+    ports:
+      - "1883:1883"
     volumes:
-      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infra/mosquitto/mosquitto.prod.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./deploy/mosquitto-passwd:/mosquitto/config/passwd:ro
       - mosquitto-data:/mosquitto/data
-    # Port 1883 sengaja belum dibuka ke internet. Buka setelah Mosquitto diberi password
-    # (untuk ESP32 yang mengirim langsung lewat MQTT).
 
   backend:
     build: ./backend

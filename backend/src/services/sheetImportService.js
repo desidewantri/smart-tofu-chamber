@@ -11,6 +11,7 @@
 const env = require('../config/env');
 const ImportCursor = require('../models/ImportCursor');
 const Chamber = require('../models/Chamber');
+const SensorReading = require('../models/SensorReading');
 const { ingestReading } = require('./ingestService');
 const { parseBattery } = require('../utils/battery');
 
@@ -124,6 +125,31 @@ function rowsToReadings(rows, opts = {}) {
   return out.sort((a, b) => a.timestamp - b.timestamp);
 }
 
+/**
+ * Pilih baris yang belum diimpor untuk satu chamber.
+ * cutoff (mode fallback): baris yang lebih baru dari cutoff ditunda dulu, memberi waktu data MQTT
+ * yang sama datang lebih dulu. Cursor tidak melewati baris yang ditunda.
+ */
+function selectFresh(readings, n, { last = null, since = null, cutoff = null } = {}) {
+  return readings.filter(
+    (r) =>
+      r.chamberId === n &&
+      (!last || r.timestamp > last) &&
+      (!since || r.timestamp >= since) &&
+      (!cutoff || r.timestamp <= cutoff)
+  );
+}
+
+/** Mode fallback: apakah sudah ada data chamber ini di sekitar waktu t (dari MQTT/HTTP)? */
+async function alreadyStored(chamberId, t, matchSec) {
+  const ms = matchSec * 1000;
+  const hit = await SensorReading.exists({
+    chamberId,
+    timestamp: { $gte: new Date(t.getTime() - ms), $lte: new Date(t.getTime() + ms) },
+  });
+  return Boolean(hit);
+}
+
 /* ---------- impor ---------- */
 async function syncOnce() {
   const url = toCsvUrl(env.sheet.url);
@@ -138,19 +164,25 @@ async function syncOnce() {
   const readings = rowsToReadings(parseCsv(text), { offset: env.sheet.tzOffset, order: env.sheet.dateOrder });
 
   const since = env.sheet.importSince ? new Date(env.sheet.importSince) : null;
+  const fallback = env.sheet.mode === 'fallback';
+  const cutoff = fallback ? new Date(Date.now() - env.sheet.graceSec * 1000) : null;
   let imported = 0;
+  let skipped = 0;
   for (const n of CHAMBERS) {
     const key = `sheet:${n}`;
     const cursor = await ImportCursor.findOne({ key });
     let last = cursor?.lastTimestamp || null;
-    const fresh = readings.filter(
-      (r) => r.chamberId === n && (!last || r.timestamp > last) && (!since || r.timestamp >= since)
-    );
+    const fresh = selectFresh(readings, n, { last, since, cutoff });
     for (const r of fresh) {
+      if (fallback && (await alreadyStored(n, r.timestamp, env.sheet.matchSec))) {
+        skipped += 1; // sudah masuk lewat MQTT
+        last = r.timestamp;
+        continue;
+      }
       try {
         await ingestReading(
           { chamber_id: n, tvoc: r.tvoc, suhu: r.suhu, rh: r.rh, battery: r.battery, timestamp: r.timestamp.toISOString() },
-          { seenAt: r.timestamp }
+          { seenAt: r.timestamp, source: 'sheet' }
         );
         imported += 1;
       } catch (err) {
@@ -173,7 +205,7 @@ async function syncOnce() {
       { $set: { battery: latest.battery, batteryAt: latest.timestamp } }
     );
   }
-  return { imported, rows: readings.length };
+  return { imported, skipped, rows: readings.length, mode: env.sheet.mode };
 }
 
 async function tick() {
@@ -182,7 +214,9 @@ async function tick() {
   try {
     const r = await syncOnce();
     lastStatus = { enabled: true, ok: true, at: new Date(), ...r };
-    if (r.imported) console.log(`[sheet] ${r.imported} data baru diimpor dari Google Sheet`);
+    if (r.mode === 'fallback') {
+      if (r.imported) console.log(`[sheet] CADANGAN: ${r.imported} data diimpor dari Sheet (tidak ada data MQTT-nya)`);
+    } else if (r.imported) console.log(`[sheet] ${r.imported} data baru diimpor dari Google Sheet`);
   } catch (err) {
     lastStatus = { enabled: true, ok: false, at: new Date(), error: err.message };
     console.error(`[sheet] ${err.message}`);
@@ -193,7 +227,11 @@ async function tick() {
 
 function start() {
   if (!env.sheet.url) return;
-  console.log(`[sheet] membaca Google Sheet tiap ${env.sheet.pollSec} detik`);
+  console.log(
+    env.sheet.mode === 'fallback'
+      ? `[sheet] mode CADANGAN: tiap ${env.sheet.pollSec} detik, impor baris Sheet yang tidak punya data MQTT (tunggu ${env.sheet.graceSec} detik)`
+      : `[sheet] membaca Google Sheet tiap ${env.sheet.pollSec} detik`
+  );
   tick();
   timer = setInterval(tick, env.sheet.pollSec * 1000);
 }
@@ -205,4 +243,4 @@ function stop() {
 
 const status = () => lastStatus;
 
-module.exports = { start, stop, status, syncOnce, parseCsv, toCsvUrl, toNumber, parseTimestamp, rowsToReadings };
+module.exports = { start, stop, status, syncOnce, parseCsv, toCsvUrl, toNumber, parseTimestamp, rowsToReadings, selectFresh };
