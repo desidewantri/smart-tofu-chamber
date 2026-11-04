@@ -9,10 +9,16 @@ const { sendWhatsApp, isConfigured } = require('./whatsappService');
 const { LOW_PERCENT, RESET_PERCENT } = require('../utils/battery');
 
 /**
- * Pemeriksa berkala: kirim WhatsApp saat status sesi BERUBAH menjadi
- * Segera Konsumsi / Tidak Layak Konsumsi, atau saat chamber terputus.
- * Setiap kejadian hanya dikirim sekali per sesi (ditandai di session.notified).
+ * Pemeriksa berkala: kirim WhatsApp saat
+ *  - tahu baru masuk (sesi baru, data sensor & prediksi pertama sudah diterima),
+ *  - status sesi BERUBAH menjadi Segera Konsumsi / Tidak Layak Konsumsi,
+ *  - chamber terputus, atau baterai alat lemah.
+ * Notifikasi SELALU aktif (tidak ada saklar di aplikasi). Syaratnya hanya: token Fonnte terisi
+ * dan minimal satu nomor tujuan. Setiap kejadian dikirim sekali per sesi (ditandai di session.notified).
  */
+
+/** Sesi yang dibuat lebih lama dari ini tidak dikirimi pesan "tahu baru masuk" (mis. sesi lama saat fitur ini dipasang). */
+const NEW_SESSION_WINDOW_MS = 6 * 3600 * 1000;
 
 const fmt = (n, d = 1) => (n === null || n === undefined ? '-' : Number(n).toFixed(d).replace('.', ','));
 
@@ -22,12 +28,18 @@ function formatRemaining(sec) {
   return h < 1 ? 'kurang dari 1 jam' : `±${h} jam`;
 }
 
-/** Susun isi pesan. kind: 'segeraJual' | 'tidakLayak' | 'offline' */
-function buildMessage({ kind, chamberName, sesiCode, sisaDetik, reading, zones }) {
+/** Susun isi pesan. kind: 'mulai' | 'segeraJual' | 'tidakLayak' | 'offline' */
+function buildMessage({ kind, chamberName, sesiCode, sisaDetik, reading, zones, status }) {
   const sensor = reading
     ? `Suhu ${fmt(reading.suhu)} °C · Kelembapan ${fmt(reading.rh)} % · TVOC ${fmt(reading.tvoc, 0)} ppb`
     : null;
-  const lines = { segeraJual: [], tidakLayak: [], offline: [] };
+  const lines = { mulai: [], segeraJual: [], tidakLayak: [], offline: [] };
+  lines.mulai = [
+    `🟢 *Tahu baru masuk* ke *${chamberName}* (ID sesi ${sesiCode}).`,
+    'Data sensor pertama sudah diterima sistem.',
+    sensor,
+    `Perkiraan sisa umur tahu ${formatRemaining(sisaDetik)}${status ? ` (${status})` : ''}.`,
+  ];
   lines.segeraJual = [
     `⚠️ *${chamberName}* (ID sesi ${sesiCode}) sekarang *Segera Konsumsi*.`,
     `Perkiraan sisa umur tahu ${formatRemaining(sisaDetik)} (di bawah ${zones.segarHours} jam).`,
@@ -62,11 +74,25 @@ async function release(sessionId, field) {
   await Session.updateOne({ _id: sessionId }, { $set: { [`notified.${field}`]: null } });
 }
 
+/** Alasan notifikasi tidak bisa dikirim (null = siap). Dicatat di log sekali setiap kali berubah. */
+let lastBlock;
+function blockReason(recipients) {
+  if (!isConfigured()) return 'token Fonnte belum diisi (FONNTE_TOKEN di backend/.env)';
+  if (!recipients.length) return 'belum ada nomor WhatsApp tujuan (Pengaturan > Notifikasi)';
+  return null;
+}
+
 async function checkOnce(now = Date.now()) {
   const settings = await SystemSetting.get();
-  const n = settings.notifications || {};
-  const wa = n.whatsapp || {};
-  if (!n.enabled || !wa.enabled || !(wa.recipients || []).length || !isConfigured()) return { sent: 0 };
+  const recipients = settings.notifications?.whatsapp?.recipients || [];
+  const reason = blockReason(recipients);
+  if (reason !== lastBlock) {
+    if (reason) console.warn(`[wa] notifikasi otomatis TIDAK terkirim: ${reason}`);
+    else if (lastBlock !== undefined) console.log('[wa] notifikasi otomatis siap dikirim');
+    lastBlock = reason;
+  }
+  if (reason) return { sent: 0, reason };
+  const wa = { recipients };
   let sent = 0;
 
   sent += await checkBattery(settings, wa.recipients, now);
@@ -81,11 +107,15 @@ async function checkOnce(now = Date.now()) {
     const status = sisa === null ? null : classifyShelfLife(sisa / 3600, settings.zones);
     const jobs = [];
 
-    if (status === STATUS.TIDAK && n.onTidakLayak && !s.notified?.tidakLayak) jobs.push('tidakLayak');
-    else if (status === STATUS.SEGERA && n.onSegeraJual && !s.notified?.segeraJual) jobs.push('segeraJual');
+    // Tahu baru masuk: sesi baru yang sudah punya data & prediksi pertama.
+    const createdAt = new Date(s.createdAt || s.masuk || 0).getTime();
+    if (!s.notified?.mulai && s.prediksiDibuat && now - createdAt < NEW_SESSION_WINDOW_MS) jobs.push('mulai');
+
+    if (status === STATUS.TIDAK && !s.notified?.tidakLayak) jobs.push('tidakLayak');
+    else if (status === STATUS.SEGERA && !s.notified?.segeraJual) jobs.push('segeraJual');
 
     const connected = c ? isConnected(c, settings, now) : false;
-    if (c && c.enabled && !connected && n.onOffline && !s.notified?.offline) jobs.push('offline');
+    if (c && c.enabled && !connected && !s.notified?.offline) jobs.push('offline');
     // Tersambung lagi -> boleh kirim peringatan "terputus" lagi bila nanti putus kembali.
     if (connected && s.notified?.offline) await release(s._id, 'offline');
 
@@ -94,7 +124,7 @@ async function checkOnce(now = Date.now()) {
       // Sudah Tidak Layak Konsumsi -> pesan Segera Konsumsi tidak perlu dikirim lagi.
       if (kind === 'tidakLayak') await Session.updateOne({ _id: s._id, 'notified.segeraJual': null }, { $set: { 'notified.segeraJual': new Date() } });
       const reading = await SensorReading.findOne({ chamberId: s.chamberId }).sort({ timestamp: -1 }).lean();
-      const message = buildMessage({ kind, chamberName, sesiCode: s.sesiCode, sisaDetik: sisa, reading, zones: settings.zones });
+      const message = buildMessage({ kind, chamberName, sesiCode: s.sesiCode, sisaDetik: sisa, reading, zones: settings.zones, status });
       try {
         await sendWhatsApp(wa.recipients, message);
         sent += 1;
@@ -110,7 +140,6 @@ async function checkOnce(now = Date.now()) {
 
 /** Peringatan baterai lemah: sekali saja, lalu boleh lagi setelah baterai diisi melewati RESET_PERCENT. */
 async function checkBattery(settings, recipients, now = Date.now()) {
-  if (!settings.notifications?.onLowBattery) return 0;
   const c = await Chamber.findOne({ battery: { $ne: null } }).sort({ batteryAt: -1 }).lean();
   if (!c || !isConnected({ lastSeenAt: c.batteryAt }, settings, now)) return 0;
   if (c.battery >= RESET_PERCENT && settings.batteryLowNotifiedAt) {

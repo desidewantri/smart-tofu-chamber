@@ -5,7 +5,7 @@ import { CheckCircle2, MessageCircle, Plus, Send, TriangleAlert, X } from 'lucid
 import { api } from '@/services/api';
 import { useI18n } from '@/context/I18nContext';
 import { useToast } from '@/components/common/Toast';
-import { SettingsCard, Toggle } from './SettingsCard';
+import { SettingsCard } from './SettingsCard';
 
 /** 6281234567890 -> +62 812-3456-7890 (hanya untuk tampilan) */
 function prettyPhone(p) {
@@ -18,8 +18,11 @@ function prettyPhone(p) {
 function WhatsAppCard({ settings, onSave }) {
   const { t } = useI18n();
   const { toast } = useToast();
-  const wa = settings.notifications.whatsapp || { enabled: false, recipients: [] };
+  const wa = settings.notifications.whatsapp || { recipients: [] };
+  const recipients = wa.recipients || [];
   const status = settings.whatsappStatus || { configured: false };
+  const zones = settings.zones || { segarHours: 24, rawanHours: 8 };
+  const offlineMin = (settings.updateIntervalMinutes || 5) * 3;
   const [phone, setPhone] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -28,7 +31,7 @@ function WhatsAppCard({ settings, onSave }) {
   async function add(e) {
     e.preventDefault();
     if (!phone.trim()) return;
-    if (await save({ recipients: [...wa.recipients, phone.trim()] })) setPhone('');
+    if (await save({ recipients: [...recipients, phone.trim()] })) setPhone('');
   }
 
   async function test() {
@@ -43,44 +46,60 @@ function WhatsAppCard({ settings, onSave }) {
     }
   }
 
+  // Notifikasi selalu aktif. Yang bisa menghalangi hanya token dan nomor tujuan.
+  const ready = status.configured && recipients.length > 0;
+  let banner;
+  if (!status.configured) banner = t('Token Fonnte belum diisi. Isi FONNTE_TOKEN di backend/.env lalu jalankan ulang backend.');
+  else if (!recipients.length) banner = t('Belum ada nomor tujuan. Tambahkan minimal satu nomor agar notifikasi terkirim.');
+  else if (status.dryRun) banner = t('Mode uji aktif (WA_DRY_RUN=true): pesan hanya dicetak di terminal backend, tidak benar-benar dikirim.');
+  else banner = t('Aktif: pesan dikirim lewat Fonnte ke {n} nomor.', { n: recipients.length });
+
+  const events = [
+    { label: t('Tahu baru masuk'), when: t('data sensor pertama diterima') },
+    { label: t('Tahu menjadi Segera Konsumsi'), when: t('sisa < {h} jam', { h: zones.segarHours }) },
+    { label: t('Tahu menjadi Tidak Layak Konsumsi'), when: t('sisa < {h} jam', { h: zones.rawanHours }) },
+    { label: t('Chamber terputus'), when: t('{m} menit tanpa data', { m: offlineMin }) },
+    { label: t('Baterai alat lemah'), when: '< 20%' },
+  ];
+
   return (
-    <SettingsCard title="Notifikasi WhatsApp" description="Kirim pesan WhatsApp saat status chamber berubah. Setiap kejadian dikirim sekali per sesi.">
+    <SettingsCard
+      title="Notifikasi WhatsApp"
+      description="Selalu aktif. TOSCHA mengirim pesan otomatis ke semua nomor di bawah setiap kali kondisi berubah."
+    >
       <div
         className={
-          status.configured
+          ready
             ? 'flex items-start gap-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-inset ring-emerald-600/20'
             : 'flex items-start gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-inset ring-amber-600/20'
         }
       >
-        {status.configured ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />}
-        <p>
-          {status.configured
-            ? status.dryRun
-              ? t('Mode uji aktif (WA_DRY_RUN=true): pesan hanya dicetak di terminal backend, tidak benar-benar dikirim.')
-              : t('Backend siap mengirim WhatsApp lewat Fonnte.')
-            : t('Token Fonnte belum diisi. Isi FONNTE_TOKEN di backend/.env lalu jalankan ulang backend.')}
-        </p>
+        {ready ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />}
+        <p>{banner}</p>
       </div>
 
-      <Toggle
-        label="Kirim notifikasi ke WhatsApp"
-        description="Memakai kejadian yang sama dengan notifikasi lonceng di atas."
-        checked={wa.enabled}
-        onChange={(v) => save({ enabled: v })}
-      />
+      <ul className="divide-y divide-slate-100 rounded-xl ring-1 ring-inset ring-slate-200">
+        {events.map((e) => (
+          <li key={e.label} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+            <span className="text-slate-800">{e.label}</span>
+            <span className="ml-auto text-right text-xs text-slate-500">{e.when}</span>
+          </li>
+        ))}
+      </ul>
 
       <div>
         <p className="label">{t('Nomor WhatsApp tujuan')}</p>
-        {wa.recipients.length === 0 ? (
+        {recipients.length === 0 ? (
           <p className="text-sm text-slate-500">{t('Belum ada nomor tujuan.')}</p>
         ) : (
           <ul className="flex flex-wrap gap-2">
-            {wa.recipients.map((r) => (
+            {recipients.map((r) => (
               <li key={r} className="flex items-center gap-1.5 rounded-full bg-slate-100 py-1 pl-3 pr-1 text-sm font-medium text-slate-700">
                 <MessageCircle className="h-3.5 w-3.5 text-emerald-600" /> {prettyPhone(r)}
                 <button
                   type="button"
-                  onClick={() => save({ recipients: wa.recipients.filter((x) => x !== r) })}
+                  onClick={() => save({ recipients: recipients.filter((x) => x !== r) })}
                   className="rounded-full p-1 text-slate-400 hover:bg-white hover:text-red-600"
                   aria-label={t('Hapus nomor')}
                 >
@@ -99,7 +118,7 @@ function WhatsAppCard({ settings, onSave }) {
             onChange={(e) => setPhone(e.target.value)}
             aria-label={t('Nomor WhatsApp tujuan')}
           />
-          <button type="submit" className="btn-outline shrink-0" disabled={!phone.trim() || wa.recipients.length >= 5}>
+          <button type="submit" className="btn-outline shrink-0" disabled={!phone.trim() || recipients.length >= 5}>
             <Plus className="h-4 w-4" /> {t('Tambah')}
           </button>
         </form>
@@ -107,7 +126,7 @@ function WhatsAppCard({ settings, onSave }) {
       </div>
 
       <div className="flex justify-end">
-        <button type="button" className="btn-primary" onClick={test} disabled={sending || !wa.recipients.length}>
+        <button type="button" className="btn-primary" onClick={test} disabled={sending || !recipients.length}>
           <Send className="h-4 w-4" /> {sending ? t('Mengirim…') : t('Kirim pesan uji')}
         </button>
       </div>
@@ -115,34 +134,7 @@ function WhatsAppCard({ settings, onSave }) {
   );
 }
 
+/** Semua notifikasi selalu aktif; halaman ini hanya mengatur nomor WhatsApp tujuan. */
 export default function NotificationSettingsTab({ settings, onSave }) {
-  const { t } = useI18n();
-  const n = settings.notifications;
-  const set = (patch) => onSave({ notifications: patch });
-
-  return (
-    <div className="space-y-6">
-      <SettingsCard title="Notifikasi" description="Pilih kejadian yang diberitahukan, di ikon lonceng dan di WhatsApp.">
-        <div className="divide-y divide-slate-100">
-          <div className="pb-3">
-            <Toggle label="Aktifkan notifikasi" description="Matikan untuk menghentikan semua notifikasi." checked={n.enabled} onChange={(v) => set({ enabled: v })} />
-          </div>
-          <div className="py-3">
-            <Toggle label="Segera Konsumsi" description="Saat sisa umur simpan masuk zona Segera Konsumsi." checked={n.onSegeraJual} onChange={(v) => set({ onSegeraJual: v })} />
-          </div>
-          <div className="py-3">
-            <Toggle label="Tidak Layak Konsumsi" description="Saat sisa umur simpan di bawah batas rawan." checked={n.onTidakLayak} onChange={(v) => set({ onTidakLayak: v })} />
-          </div>
-          <div className="py-3">
-            <Toggle label="Chamber terputus" description="Saat chamber dengan sesi aktif berhenti mengirim data." checked={n.onOffline} onChange={(v) => set({ onOffline: v })} />
-          </div>
-          <div className="pt-3">
-            <Toggle label="Baterai alat lemah" description="Saat baterai alat sensor di bawah 20%." checked={n.onLowBattery !== false} onChange={(v) => set({ onLowBattery: v })} />
-          </div>
-        </div>
-        <p className="text-xs text-slate-500">{t('Perubahan tersimpan otomatis.')}</p>
-      </SettingsCard>
-      <WhatsAppCard settings={settings} onSave={onSave} />
-    </div>
-  );
+  return <WhatsAppCard settings={settings} onSave={onSave} />;
 }

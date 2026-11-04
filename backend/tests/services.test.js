@@ -179,3 +179,16 @@ test('validatePayload menerima TVOC tinggi sampai batas AGS10 (99999 ppb), menol
   assert.equal(validatePayload({ chamber_id: 1, tvoc: 99999, suhu: 30, rh: 90 }).tvoc, 99999);
   assert.throws(() => validatePayload({ chamber_id: 1, tvoc: 100000, suhu: 30, rh: 90 }));
 });
+
+test('buildMessage menyusun pesan "Tahu baru masuk" dengan data sensor pertama dan status', () => {
+  const msg = buildMessage({
+    kind: 'mulai', chamberName: 'Chamber 2', sesiCode: 'CH-007', sisaDetik: 30 * 3600,
+    reading: { suhu: 29.5, rh: 88, tvoc: 412 }, zones: { segarHours: 24, rawanHours: 8 }, status: 'Layak Konsumsi',
+  });
+  assert.match(msg, /Tahu baru masuk/);
+  assert.match(msg, /Chamber 2/);
+  assert.match(msg, /CH-007/);
+  assert.match(msg, /Data sensor pertama sudah diterima/);
+  assert.match(msg, /Suhu 29,5 °C/);
+  assert.match(msg, /±30 jam \(Layak Konsumsi\)/);
+});

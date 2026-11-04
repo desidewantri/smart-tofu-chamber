@@ -89,10 +89,10 @@ exports.dashboard = asyncHandler(async (_req, res) => {
 /** GET /api/notifications : notifikasi turunan dari kondisi saat ini (tanpa koleksi tambahan). */
 exports.notifications = asyncHandler(async (_req, res) => {
   const settings = await SystemSetting.get();
-  const n = settings.notifications;
+  // Semua jenis notifikasi selalu aktif (tidak ada saklar di aplikasi).
+  const n = { onTidakLayak: true, onSegeraJual: true, onOffline: true, onLowBattery: true };
   const now = Date.now();
   const items = [];
-  if (!n.enabled) return res.json({ success: true, data: [] });
 
   const chambers = await Chamber.find();
   const sessions = await Session.find({ status: 'aktif' });

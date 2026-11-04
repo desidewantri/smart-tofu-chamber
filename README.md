@@ -144,7 +144,7 @@ Backend memeriksa status chamber tiap 60 detik dan mengirim WhatsApp saat sesi b
 
 1. Daftar di https://fonnte.com, tambah perangkat, lalu scan QR dengan nomor WA pengirim (sebaiknya nomor khusus, bukan nomor pribadi). HP itu harus tetap menyala dan terhubung internet.
 2. Salin token perangkat ke `FONNTE_TOKEN` di `backend/.env`, lalu jalankan ulang backend.
-3. Di aplikasi buka **Pengaturan > Notifikasi**, tambahkan nomor tujuan, aktifkan **Kirim notifikasi ke WhatsApp**, lalu tekan **Kirim pesan uji**.
+3. Di aplikasi buka **Pengaturan > Notifikasi**, tambahkan nomor tujuan, lalu tekan **Kirim pesan uji**. Notifikasi selalu aktif (tidak ada saklar): tahu baru masuk, Segera Konsumsi, Tidak Layak, chamber terputus, dan baterai lemah dikirim otomatis. Bila tidak terkirim, log backend menulis alasannya (`[wa] notifikasi otomatis TIDAK terkirim: ...`).
 
 Belum punya token? Isi `WA_DRY_RUN=true` di `backend/.env`: pesan tidak dikirim, hanya dicetak di terminal backend.
 

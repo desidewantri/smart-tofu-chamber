@@ -26,6 +26,7 @@ const sessionSchema = new mongoose.Schema(
     sisaAkhirJam: { type: Number, default: null },
     // Penanda notifikasi WhatsApp yang sudah terkirim, agar tiap kejadian hanya dikirim sekali per sesi.
     notified: {
+      mulai: { type: Date, default: null }, // "tahu baru masuk" (data & prediksi pertama diterima)
       segeraJual: { type: Date, default: null },
       tidakLayak: { type: Date, default: null },
       offline: { type: Date, default: null },
