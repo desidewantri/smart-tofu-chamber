@@ -7,15 +7,18 @@ import { cn, hoursLeft } from '@/lib/utils';
 /** Perkiraan sisa umur dalam jam saja, dibulatkan ke bawah. */
 export default function ShelfLifeTimer({ seconds, textClass = 'text-slate-900' }) {
   const { t } = useI18n();
-  const h = hoursLeft(seconds);
-  const expired = (seconds || 0) <= 0;
+  const unavailable = seconds === null || seconds === undefined || Number.isNaN(Number(seconds));
+  const h = unavailable ? null : hoursLeft(seconds);
+  const expired = !unavailable && Number(seconds) <= 0;
   return (
     <div>
       <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
         <Clock className="h-3.5 w-3.5" /> {t('Perkiraan Sisa Umur Tahu')}
       </p>
       <div className={cn('mt-0.5 flex items-baseline gap-1.5 font-bold tabular-nums', textClass)} aria-live="off">
-        {expired ? (
+        {unavailable ? (
+          <span className="text-lg leading-none text-slate-500">{t('Menunggu prediksi')}</span>
+        ) : expired ? (
           <span className="text-3xl leading-none">{t('Habis')}</span>
         ) : (
           <>

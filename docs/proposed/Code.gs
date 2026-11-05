@@ -1,17 +1,14 @@
-// TEMPLATE: fill API_KEY and SPREADSHEET_ID locally before deploying.
-// Do not commit real credentials to this repository.
-
 // =====================================================
 // TOFUSENSE - GOOGLE SHEETS RECEIVER
-// Explicit Spreadsheet ID + Testing Tab
+// Explicit Spreadsheet ID + target `test` tab (not deployed)
 // =====================================================
 
-const API_KEY = 'PASTE_API_KEY';
+const API_KEY = 'PASTE_API_KEY'; // set in Apps Script before deployment
 
 const SPREADSHEET_ID =
   'PASTE_SPREADSHEET_ID';
 
-const SHEET_NAME = 'testing';
+const SHEET_NAME = 'test';
 
 const HEADERS = [
   'received_at',
@@ -56,6 +53,53 @@ function doGet() {
 // =====================================================
 // MAIN POST ENDPOINT
 // =====================================================
+
+/**
+ * Strict ISO-8601 with an explicit timezone. Returns a normalized UTC ISO
+ * string, or null for invalid/date-only values.
+ */
+function normalizeIsoTimestamp(value) {
+  const text = String(value || '').trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/.exec(text);
+  if (!m) return null;
+  const calendar = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]));
+  if (
+    calendar.getUTCFullYear() !== +m[1] ||
+    calendar.getUTCMonth() + 1 !== +m[2] ||
+    calendar.getUTCDate() !== +m[3] ||
+    calendar.getUTCHours() !== +m[4] ||
+    calendar.getUTCMinutes() !== +m[5] ||
+    calendar.getUTCSeconds() !== +m[6]
+  ) {
+    return null;
+  }
+  const d = new Date(text);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/**
+ * Exact validated target sample_id format:
+ * tofusense-YYYYMMDDTHHMMSSmmmZ-<uuid>
+ * Returns a UTC ISO string only for that exact format.
+ */
+function sampleIdTimestamp(sampleId) {
+  const text = String(sampleId || '').trim();
+  const m = /^tofusense-(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(\d{3})Z-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.exec(text);
+  if (!m) return null;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6], +m[7]));
+  if (isNaN(d.getTime())) return null;
+  if (
+    d.getUTCFullYear() !== +m[1] ||
+    d.getUTCMonth() + 1 !== +m[2] ||
+    d.getUTCDate() !== +m[3] ||
+    d.getUTCHours() !== +m[4] ||
+    d.getUTCMinutes() !== +m[5] ||
+    d.getUTCSeconds() !== +m[6]
+  ) {
+    return null;
+  }
+  return d.toISOString();
+}
 
 function doPost(e) {
 
@@ -142,10 +186,26 @@ function doPost(e) {
     }
 
     // PREPARE DATA
+    // received_at is always a full UTC timestamp. sampled_at is never replaced
+    // by received_at; it comes from a valid ISO value or the exact validated
+    // sample_id timestamp, otherwise it stays blank and is reported as a defect.
+    const receivedAt = new Date().toISOString();
+    const sampledRaw = String(d.sampled_at || '').trim();
+    const sampledNormalized = normalizeIsoTimestamp(sampledRaw);
+    const sampleTimestamp = !sampledRaw ? sampleIdTimestamp(d.sample_id) : null;
+    const sampledAt = sampledNormalized || sampleTimestamp || '';
+    const timestampDefect = sampledNormalized
+      ? null
+      : sampledRaw
+        ? 'SAMPLED_AT_INVALID'
+        : sampleTimestamp
+          ? 'SAMPLED_AT_FROM_SAMPLE_ID'
+          : 'SAMPLED_AT_MISSING';
+
     const row = [
-      new Date(),
+      receivedAt,
       String(d.sample_id),
-      d.sampled_at || '',
+      sampledAt,
 
       val(d.temp1, -40, 125),
       val(d.humid1, 0, 100),
@@ -188,7 +248,10 @@ function doPost(e) {
       sample_id: String(d.sample_id),
       spreadsheet: ss.getName(),
       spreadsheet_id: ss.getId(),
-      sheet: SHEET_NAME
+      sheet: SHEET_NAME,
+      received_at: receivedAt,
+      sampled_at: sampledAt || null,
+      timestamp_defect: timestampDefect
     });
 
   } catch (err) {

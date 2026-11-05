@@ -40,8 +40,18 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
   const now = new Date(fetchedAt || Date.now());
 
   const count = { segera: 0, tidak: 0 };
-  active.forEach(({ session }) => {
-    const st = classifyShelfLife((session?.sisaDetik ?? 0) / 3600, zones);
+  let waiting = 0;
+  const rslCards = active.filter(({ rsl }) => rsl);
+  const rslAvailable = rslCards.filter(({ rsl }) => rsl.status === 'AVAILABLE' && rsl.primary).length;
+  const rslUnavailable = rslCards.length - rslAvailable;
+  active.forEach(({ session, rsl }) => {
+    if (rsl) return;
+    const seconds = session?.sisaDetik;
+    if (seconds === null || seconds === undefined || Number.isNaN(Number(seconds))) {
+      waiting += 1;
+      return;
+    }
+    const st = classifyShelfLife(seconds / 3600, zones);
     if (st === 'Segera Konsumsi') count.segera += 1;
     if (st === 'Tidak Layak Konsumsi') count.tidak += 1;
   });
@@ -53,8 +63,14 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
   if (count.tidak) parts.push(t('{n} chamber sudah tidak layak dikonsumsi', { n: count.tidak }));
   let summary;
   if (!active.length) summary = t('Belum ada tahu yang sedang disimpan.');
-  else if (!parts.length) summary = t('Semua tahu di chamber masih layak dikonsumsi.');
-  else summary = `${t('Hari ini')} ${parts.join(` ${t('dan')} `)}.`;
+  else if (rslCards.length) {
+    summary = rslUnavailable
+      ? t('{n} chamber memiliki rentang RSL historis; {m} belum tersedia.', { n: rslAvailable, m: rslUnavailable })
+      : t('{n} chamber memiliki rentang RSL historis.', { n: rslAvailable });
+  } else if (!parts.length && waiting) {
+    summary = t('Menunggu prediksi pertama untuk {n} chamber.', { n: waiting });
+  } else if (!parts.length) summary = t('Semua tahu di chamber masih layak dikonsumsi.');
+  else summary = `${t('Hari ini')} ${parts.join(` ${t('dan')} `)}.${waiting ? ` ${t('{n} chamber menunggu prediksi.', { n: waiting })}` : ''}`;
   const sensor = offline ? t('{n} sensor terputus.', { n: offline }) : t('Semua sensor terhubung.');
 
   const date = now.toLocaleDateString(getLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -63,7 +79,7 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-slate-200/70 border-l-[5px] border-l-brand-600 bg-white px-4 py-3.5 shadow-card sm:flex-row sm:items-center sm:gap-5 sm:px-5 sm:py-3">
       <div className="w-full min-w-0 sm:w-auto sm:flex-1">
-        <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-brand-600">
+        <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-brand-700">
           {date} · {time}
         </p>
         <h2 className="mt-0.5 text-[17px] font-extrabold text-brand-900">

@@ -19,6 +19,8 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { EmptyState, ErrorState, Loading } from '@/components/common/States';
 import ShelfLifeChart from '@/components/dashboard/ShelfLifeChart';
 import SensorHistoryChart from './SensorHistoryChart';
+import RslAnalysisPanel from './RslAnalysisPanel';
+import RslModelComparison from '@/components/rsl/RslModelComparison';
 
 const SENSORS = [
   { key: 'suhu', label: 'Suhu', unit: '°C', yLabel: 'Suhu (°C)', color: '#f97316', decimals: 1, minPad: 1 },
@@ -58,6 +60,13 @@ function recommendations(status, live, untilDay) {
     'Jaga suhu ruang tetap stabil — kenaikan suhu mempercepat penurunan kualitas.',
     'Pastikan chamber tertutup rapat agar pembacaan TVOC akurat.',
   ];
+  if (!untilDay) {
+    return [
+      'Gunakan rentang historis sebagai bahan pertimbangan, bukan jaminan waktu aman.',
+      'Perbarui status sampel secara eksplisit setelah pemeriksaan operator.',
+      ...general,
+    ];
+  }
   if (status === STATUS.TIDAK) {
     return [
       'Tahu sudah tidak layak dikonsumsi; keluarkan dari chamber lalu tekan Tahu Sudah Keluar.',
@@ -83,16 +92,30 @@ function Body({ d, zones, fetchedAt }) {
   const { t } = useI18n();
   const seconds = useCountdown(d.remainingSeconds, fetchedAt);
   const live = d.session?.status === 'aktif';
-  const status = live ? classifyShelfLife((seconds ?? 0) / 3600, zones) : d.status;
-  const style = STATUS_STYLES[status] || NEUTRAL_STYLE;
-
+  const unavailable = seconds === null || seconds === undefined || Number.isNaN(Number(seconds));
+  const status = live ? (unavailable ? null : classifyShelfLife(seconds / 3600, zones)) : d.status;
+  const rsl = d.rsl;
+  const rslAvailable = rsl?.status === 'AVAILABLE' && rsl.primary;
+  const rslStatusLabel = rslAvailable
+    ? 'Rentang historis'
+    : rsl?.reason === 'SAMPLE_STATUS_UNKNOWN'
+      ? 'Status sampel belum diinput'
+      : rsl?.reason === 'SAMPLE_REPORTED_SPOILED'
+        ? 'Sampel dilaporkan rusak'
+        : rsl
+          ? 'Estimasi tidak tersedia'
+          : null;
+  const style = rslAvailable ? NEUTRAL_STYLE : STATUS_STYLES[status] || NEUTRAL_STYLE;
   const nowMs = Date.now();
-  const masukMs = new Date(d.session.masuk).getTime();
+  const startMs = new Date(d.session.experimentStartedAt || d.session.masuk || nowMs).getTime();
+  const masukMs = d.session.masuk ? new Date(d.session.masuk).getTime() : startMs;
   const endMs = d.session.selesai ? new Date(d.session.selesai).getTime() : nowMs;
-  const storedSec = Math.max(0, (endMs - masukMs) / 1000);
+  // Shared elapsed time for a new experiment uses Experiment.startedAt; the
+  // first-reading audit time remains the "masuk" label only.
+  const storedSec = Math.max(0, (endMs - startMs) / 1000);
   const masuk = whenText(masukMs, false);
   // "Perkiraan Tidak Layak" = saat status berubah ke Tidak Layak Konsumsi (sisa umur < Batas Rawan).
-  const toTidakSec = (seconds ?? 0) - zones.rawanHours * 3600;
+  const toTidakSec = unavailable ? null : seconds - zones.rawanHours * 3600;
   const until = live && toTidakSec > 0 ? whenText(nowMs + toTidakSec * 1000) : null;
   // Bila sudah lewat: kapan status pertama kali berubah ke Tidak Layak (prediksi pertama < Batas Rawan).
   const firstBad = !until ? (d.trend || []).find((p) => p.shelfLife < zones.rawanHours) : null;
@@ -112,34 +135,65 @@ function Body({ d, zones, fetchedAt }) {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className={cn('rounded-2xl border-2 px-4 py-3.5 shadow-card', style.card)}>
           <p className="text-xs font-semibold text-slate-500">{t('Status Saat Ini')}</p>
-          <div className="mt-1.5"><StatusBadge status={status} /></div>
+          <div className="mt-1.5">
+            {rslStatusLabel ? (
+              <StatusBadge status="__rsl">{t(rslStatusLabel)}</StatusBadge>
+            ) : (
+              <StatusBadge status={status}>{unavailable ? 'Menunggu prediksi' : undefined}</StatusBadge>
+            )}
+          </div>
           <p className="mt-1.5 text-xs text-slate-500">
             {t('Sesi')} {d.session.sesiCode} · {d.chamber?.name || `Chamber ${d.session.chamberId}`}
           </p>
         </div>
-        <Kpi label={t('Perkiraan Sisa Umur')}>
-          <p className={cn('mt-1 text-2xl font-bold tabular-nums', style.text)}>{formatHoursLeft(seconds ?? 0)}</p>
-        </Kpi>
-        <Kpi label={t('Perkiraan Tidak Layak')}>
-          {until ? (
+        <Kpi label={t(rslAvailable ? 'Rentang historis tersisa' : 'Perkiraan Sisa Umur')}>
+          {rslAvailable ? (
             <>
-              <p className="mt-1 text-lg font-bold capitalize text-slate-900">{until.day}</p>
-              <p className="text-xs text-slate-500">{t('sekitar pukul {t}', { t: until.time })}</p>
+              <p className={cn('mt-1 text-2xl font-bold tabular-nums', style.text)}>
+                {rsl.primary.display.lowerHours}–{rsl.primary.display.upperHours} {t('jam')}
+              </p>
+              <p className="text-[11px] text-slate-500">
+                {t('Batas penuh')} {rsl.primary.lowerHours.toFixed(2)}–{rsl.primary.upperHours.toFixed(2)} {t('jam')}
+              </p>
             </>
+          ) : rsl ? (
+            <p className="mt-1 text-lg font-bold text-slate-700">{t(rslStatusLabel)}</p>
           ) : (
-            <>
-              <p className="mt-1 text-lg font-bold text-slate-900">{live ? t('Sudah lewat') : '—'}</p>
-              {passedAt && (
-                <p className="text-xs text-slate-500">{t('status berubah {d} ±{t}', { d: passedAt.day, t: passedAt.time })}</p>
-              )}
-            </>
+            <p className={cn('mt-1 text-2xl font-bold tabular-nums', style.text)}>{formatHoursLeft(seconds)}</p>
           )}
         </Kpi>
+        {rslAvailable ? (
+          <Kpi label={t('Batas atas historis')}>
+            <p className="mt-1 text-lg font-bold tabular-nums text-slate-900">
+              {rsl.primary.display.upperHours} {t('jam')}
+            </p>
+            <p className="text-xs text-slate-500">{t('Bukan waktu kedaluwarsa yang dijamin')}</p>
+          </Kpi>
+        ) : (
+          <Kpi label={t('Perkiraan Tidak Layak')}>
+            {until ? (
+              <>
+                <p className="mt-1 text-lg font-bold capitalize text-slate-900">{until.day}</p>
+                <p className="text-xs text-slate-500">{t('sekitar pukul {t}', { t: until.time })}</p>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 text-lg font-bold text-slate-900">{live ? t('Sudah lewat') : '—'}</p>
+                {passedAt && (
+                  <p className="text-xs text-slate-500">{t('status berubah {d} ±{t}', { d: passedAt.day, t: passedAt.time })}</p>
+                )}
+              </>
+            )}
+          </Kpi>
+        )}
         <Kpi label={t('Lama Disimpan')}>
           <p className="mt-1 text-lg font-bold tabular-nums text-slate-900">{formatDurationLong(storedSec)}</p>
           <p className="text-xs text-slate-500">{t('masuk {d}, {t}', { d: masuk.day, t: masuk.time })}</p>
         </Kpi>
       </div>
+
+      <RslModelComparison rsl={rsl} />
+      <RslAnalysisPanel rsl={rsl} />
 
       {/* Grafik sensor sepanjang sesi */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -209,7 +263,7 @@ function Body({ d, zones, fetchedAt }) {
           <div className="card p-5">
             <h3 className="font-semibold text-slate-900">{t('Rekomendasi')}</h3>
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-slate-700">
-              {recommendations(status, live, untilText).map((r, i) => (
+              {recommendations(rslAvailable ? null : status, live, rslAvailable ? null : untilText).map((r, i) => (
                 <li key={i}>{typeof r === 'string' ? t(r) : t(r.text, { when: r.when })}</li>
               ))}
             </ul>

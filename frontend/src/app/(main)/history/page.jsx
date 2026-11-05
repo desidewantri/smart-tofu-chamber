@@ -64,7 +64,7 @@ export default function HistoryPage() {
         <div className="grid gap-3 border-b border-slate-100 p-4 sm:grid-cols-2 lg:grid-cols-6">
           <div className="relative lg:col-span-2">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input className="input !pl-10" placeholder={t('Cari ID sesi…')} value={q} onChange={(e) => setQ(e.target.value)} />
+            <input className="input !pl-10" placeholder={t('Cari ID sesi…')} aria-label={t('Cari ID sesi')} value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <select className="input" value={chamberId} onChange={(e) => setChamberId(e.target.value)} aria-label={t('Filter chamber')}>
             <option value="">{t('Semua Chamber')}</option>

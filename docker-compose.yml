@@ -20,6 +20,13 @@ services:
       - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
 
+  rsl:
+    build: ./rsl_service
+    container_name: stc-rsl
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+
 volumes:
   mongo-data:
   mosquitto-data:

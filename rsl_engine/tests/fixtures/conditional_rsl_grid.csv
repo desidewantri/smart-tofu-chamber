@@ -1,0 +1,15 @@
+elapsed_h,n_reference_sessions,n_at_risk_sessions,M1_empirical_envelope,M1b_risk_set_variant,M2_turnbull_components,M3_weibull_conditional_10_90,M3_support_warning,status,range_interpretation,interpretation_notes
+0.0,3,3,"(23.07,42.89]","(23.07,42.89]","(23.07,24.63];(31.14,32.23]","[22.96,34.28]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+6.0,3,3,"(17.07,36.89]","(17.07,36.89]","(17.07,18.63];(25.14,26.23]","[16.96,28.28]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+12.0,3,3,"(11.07,30.89]","(11.07,30.89]","(11.07,12.63];(19.14,20.23]","[10.98,22.28]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+18.0,3,3,"(5.07,24.89]","(5.07,24.89]","(5.07,6.63];(13.14,14.23]","[5.39,16.31]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+23.0,3,3,"(0.07,19.89]","(0.07,19.89]","(0.07,1.63];(8.14,9.23]","[2.15,11.48]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+24.0,3,3,"(0.00,18.89]","(0.00,18.89]","(0.00,0.63];(7.14,8.23]","[1.73,10.56]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+24.63,3,3,"(0.00,18.26]","(0.00,18.26]","(0.000,0.004];(6.51,7.60]","[1.51,9.99]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+26.0,3,2,"(0.00,16.89]","(0.19,16.89]","(5.14,6.23]","[1.12,8.78]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+28.0,3,2,"(0.00,14.89]","(0.00,14.89]","(3.14,4.23]","[0.72,7.14]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+30.0,3,2,"(0.00,12.89]","(0.00,12.89]","(1.14,2.23]","[0.47,5.67]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+32.0,3,2,"(0.00,10.89]","(0.00,10.89]","(0.00,0.23]","[0.31,4.40]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+35.0,3,1,"(0.00,7.89]","(0.00,7.89]",UNDEFINED,"[0.17,2.92]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+40.0,3,1,"(0.00,2.89]","(0.00,2.89]",UNDEFINED,"[0.07,1.41]",,OK,EMPIRICAL_INTERVAL_ENVELOPE,empirical interval envelope; not a probabilistic prediction interval or confidence interval
+43.0,3,0,OUTSIDE_SUPPORT,OUTSIDE_SUPPORT,UNDEFINED,OUTSIDE_SUPPORT,,OUTSIDE_SUPPORT,NO_RANGE_OUTSIDE_SUPPORT,elapsed time is at or beyond every reference upper endpoint

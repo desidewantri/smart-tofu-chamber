@@ -82,7 +82,20 @@ test('an invalid sample time is flagged, not silently replaced with received tim
   assert.equal(time.timestampQuality, 'INVALID');
 });
 
-test('future sample times beyond the tolerance are rejected', () => {
+test('future sample times within 15 minutes of receipt are accepted', () => {
+  const time = resolveSampleTime({ sampled_at: '2026-11-05T00:15:00Z' }, RECEIVED);
+  assert.equal(time.sampledAt.toISOString(), '2026-11-05T00:15:00.000Z');
+  assert.equal(time.timestampQuality, 'OK');
+});
+
+test('future sample times beyond the 15-minute tolerance are rejected', () => {
+  const time = resolveSampleTime({ sampled_at: '2026-11-05T00:21:00Z' }, RECEIVED);
+  assert.equal(time.sampledAt, null);
+  assert.equal(time.timestampQuality, 'INVALID');
+  assert.equal(time.timestamp.toISOString(), RECEIVED.toISOString());
+});
+
+test('wildly future sample times are rejected', () => {
   const time = resolveSampleTime({ sampled_at: '2026-11-07T00:00:00Z' }, RECEIVED);
   assert.equal(time.sampledAt, null);
   assert.equal(time.timestampQuality, 'INVALID');

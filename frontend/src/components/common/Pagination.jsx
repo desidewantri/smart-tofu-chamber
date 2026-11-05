@@ -47,7 +47,7 @@ export default function Pagination({ page, pages, total, limit, onPage, onLimit 
         <button className="btn-outline !px-2.5 !py-1.5" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label={t('Berikutnya')}>
           <ChevronRight className="h-4 w-4" />
         </button>
-        <select className="input !w-auto !py-1.5" value={limit} onChange={(e) => onLimit(Number(e.target.value))}>
+        <select className="input !w-auto !py-1.5" aria-label={t('Jumlah per halaman')} value={limit} onChange={(e) => onLimit(Number(e.target.value))}>
           {[5, 10, 20, 50].map((n) => (
             <option key={n} value={n}>
               {t('{n} / halaman', { n })}

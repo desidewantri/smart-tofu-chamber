@@ -13,7 +13,11 @@ const SAMPLE_ID_MAX = 96;
 const EVENT_ID_MAX = 160;
 const DEVICE_ID_MAX = 64;
 const ALLOWED = /^[A-Za-z0-9._:-]+$/;
-const FUTURE_TOLERANCE_MS = 24 * 3600 * 1000;
+// Firmware uses NTP. A 15-minute allowance absorbs ordinary clock skew and
+// network delay while preventing a badly future-dated sample from moving
+// prediction/audit state forward by hours. Larger skew is flagged INVALID and
+// the server receipt time is used instead.
+const FUTURE_TOLERANCE_MS = 15 * 60 * 1000;
 
 function sanitiseSampleId(value) {
   if (value === undefined || value === null) return null;

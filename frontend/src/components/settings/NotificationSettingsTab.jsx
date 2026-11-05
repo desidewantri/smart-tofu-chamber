@@ -55,9 +55,9 @@ function WhatsAppCard({ settings, onSave }) {
   else banner = t('Aktif: pesan dikirim lewat Fonnte ke {n} nomor.', { n: recipients.length });
 
   const events = [
-    { label: t('Tahu baru masuk'), when: t('data sensor pertama diterima') },
-    { label: t('Tahu menjadi Segera Konsumsi'), when: t('sisa < {h} jam', { h: zones.segarHours }) },
-    { label: t('Tahu menjadi Tidak Layak Konsumsi'), when: t('sisa < {h} jam', { h: zones.rawanHours }) },
+    { label: t('Tahu baru masuk'), when: t('data sensor pertama diterima; estimasi menunggu status operator') },
+    { label: t('Batas bawah M1 mulai terbatas'), when: t('≤ {h} jam', { h: zones.segarHours }) },
+    { label: t('Batas bawah M1 mendekati'), when: t('≤ {h} jam', { h: zones.rawanHours }) },
     { label: t('Chamber terputus'), when: t('{m} menit tanpa data', { m: offlineMin }) },
     { label: t('Baterai alat lemah'), when: '< 20%' },
   ];
@@ -78,6 +78,9 @@ function WhatsAppCard({ settings, onSave }) {
         <p>{banner}</p>
       </div>
 
+      <p className="text-xs leading-relaxed text-slate-500">
+        {t('Notifikasi RSL memakai batas bawah M1 dari envelope historis. Bukan countdown mock, bukan jaminan keamanan, dan tidak mengubah status sampel operator.')}
+      </p>
       <ul className="divide-y divide-slate-100 rounded-xl ring-1 ring-inset ring-slate-200">
         {events.map((e) => (
           <li key={e.label} className="flex items-center gap-3 px-4 py-2.5 text-sm">

@@ -18,6 +18,60 @@ test('validatePayload memakai chamber id dari topik MQTT bila tidak ada di paylo
   assert.equal(validatePayload({ tvoc: 100, suhu: 25, rh: 70 }, 2).chamberId, 2);
 });
 
+test('validatePayload menerima alias temperature/humidity dan temp/humid', () => {
+  const temperature = validatePayload({
+    chamber_id: 1, tvoc: 100, temperature: 27.54, humidity: 79.59,
+  });
+  assert.equal(temperature.suhu, 27.54);
+  assert.equal(temperature.rh, 79.59);
+
+  const temp = validatePayload({
+    chamber_id: 1, tvoc: 100, temp: 26.5, humid: 72,
+  });
+  assert.equal(temp.suhu, 26.5);
+  assert.equal(temp.rh, 72);
+
+  // Topic-based chamber fallback still applies to alias payloads.
+  assert.equal(validatePayload({ tvoc: 100, temp: 26.5, humid: 72 }, 2).chamberId, 2);
+});
+
+test('validatePayload mempertahankan prioritas suhu/rh di atas alias', () => {
+  const canonical = validatePayload({
+    chamber_id: 1, tvoc: 100,
+    suhu: 20, temperature: 21, temp: 22,
+    rh: 60, humidity: 61, humid: 62,
+  });
+  assert.equal(canonical.suhu, 20);
+  assert.equal(canonical.rh, 60);
+
+  const alias = validatePayload({
+    chamber_id: 1, tvoc: 100,
+    temperature: 21, temp: 22,
+    humidity: 61, humid: 62,
+  });
+  assert.equal(alias.suhu, 21);
+  assert.equal(alias.rh, 61);
+
+  const nullish = validatePayload({
+    chamber_id: 1, tvoc: 100,
+    suhu: null, temperature: 21, temp: 22,
+    rh: null, humidity: 61, humid: 62,
+  });
+  assert.equal(nullish.suhu, 21);
+  assert.equal(nullish.rh, 61);
+});
+
+test('validatePayload tetap memvalidasi rentang alias', () => {
+  assert.throws(
+    () => validatePayload({ chamber_id: 1, tvoc: 100, temp: 200, humid: 70 }),
+    /suhu/
+  );
+  assert.throws(
+    () => validatePayload({ chamber_id: 1, tvoc: 100, temp: 25, humid: 130 }),
+    /rh/
+  );
+});
+
 test('validatePayload menolak data tidak valid', () => {
   assert.throws(() => validatePayload(null), /objek JSON/);
   assert.throws(() => validatePayload({ chamber_id: 1, tvoc: -5, suhu: 25, rh: 70 }), /tvoc/);

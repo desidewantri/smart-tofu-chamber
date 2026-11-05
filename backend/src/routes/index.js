@@ -8,6 +8,8 @@ const chamber = require('../controllers/chamberController');
 const session = require('../controllers/sessionController');
 const sensor = require('../controllers/sensorController');
 const dashboard = require('../controllers/dashboardController');
+const experiment = require('../controllers/experimentController');
+const rsl = require('../controllers/rslController');
 const analysis = require('../controllers/analysisController');
 const setting = require('../controllers/settingController');
 
@@ -32,6 +34,16 @@ router.get('/dashboard', dashboard.dashboard);
 router.get('/notifications', dashboard.notifications);
 router.get('/battery', dashboard.battery);
 router.post('/notifications/whatsapp/test', dashboard.testWhatsApp);
+
+router.get('/experiments/active', experiment.active);
+router.get('/experiments', experiment.list);
+router.post('/experiments', experiment.start);
+router.get('/experiments/:id', experiment.detail);
+router.post('/experiments/:id/stop', experiment.stop);
+router.get('/experiments/:id/rsl/:chamberId', rsl.forChamber);
+router.get('/experiments/:id/rsl/:chamberId/analysis', rsl.analysis);
+router.get('/rsl/snapshots', rsl.snapshots);
+router.patch('/experiments/:id/sessions/:sessionId/sample-status', rsl.updateSampleStatus);
 
 router.get('/chambers', chamber.list);
 router.get('/chambers/:id', chamber.detail);

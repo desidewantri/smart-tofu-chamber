@@ -21,7 +21,7 @@ export default function IdleChamberCard({ chamber }) {
           </div>
         </div>
         <div className="shrink-0 text-right">
-          <p className={cn('flex items-center justify-end gap-1.5 text-xs font-semibold', chamber.connected ? 'text-emerald-600' : 'text-slate-400')}>
+          <p className={cn('flex items-center justify-end gap-1.5 text-xs font-semibold', chamber.connected ? 'text-emerald-700' : 'text-slate-400')}>
             <span className={cn('h-2 w-2 rounded-full', chamber.connected ? 'bg-emerald-500' : 'bg-slate-400')} />
             {chamber.connected ? t('Terhubung') : t('Terputus')}
           </p>

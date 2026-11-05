@@ -54,13 +54,31 @@ module.exports = {
     // primary  = Sheet sumber utama: semua baris baru diimpor (perilaku lama).
     // fallback = MQTT sumber utama, Sheet cadangan: baris Sheet hanya diimpor bila data MQTT
     //            untuk chamber & waktu yang sama TIDAK ada (alat mengirim ke keduanya).
-    mode: (process.env.SHEET_MODE || 'primary').toLowerCase() === 'fallback' ? 'fallback' : 'primary',
+    mode: (process.env.SHEET_MODE || 'fallback').toLowerCase() === 'primary' ? 'primary' : 'fallback',
     graceSec: Math.max(30, Number(process.env.SHEET_FALLBACK_GRACE_SEC) || 180), // tunggu data MQTT datang dulu
     matchSec: Math.max(30, Number(process.env.SHEET_FALLBACK_MATCH_SEC) || 150), // selisih waktu yang dianggap data sama
+    // Optional, explicit identity of the legacy source. Required to migrate
+    // existing sheet:1/sheet:2 cursors to source-scoped keys. Example:
+    // e:<publishedId>:<gid> (published URL) or <spreadsheetId>:<gid> (direct URL).
+    legacySourceId: process.env.SHEET_LEGACY_SOURCE_ID || '',
   },
   ml: {
     mode: (process.env.ML_MODE || 'mock').toLowerCase(), // mock | live | auto
     url: (process.env.ML_SERVICE_URL || 'http://127.0.0.1:8000').replace(/\/$/, ''),
     timeoutMs: Number(process.env.ML_TIMEOUT_MS) || 3000,
+  },
+  // SSA/RSL is a separate statistical capability. It never uses ML_MODE and it
+  // never feeds sensor values into M1/M2/M3.
+  rslSnapshotRecovery: {
+    intervalSec: Math.max(15, Number(process.env.RSL_SNAPSHOT_RECOVERY_INTERVAL_SEC) || 60),
+    maxBatch: Math.max(1, Math.min(Number(process.env.RSL_SNAPSHOT_RECOVERY_MAX_BATCH) || 10, 50)),
+  },
+  rsl: {
+    enabled: bool(process.env.RSL_ENABLED, true),
+    url: (process.env.RSL_SERVICE_URL || 'http://127.0.0.1:8001').replace(/\/$/, ''),
+    timeoutMs: Math.max(250, Number(process.env.RSL_TIMEOUT_MS) || 2500),
+    // Domain default for a dry-tofu chamber. An explicit unsupported value is
+    // rejected by the API; the engine still returns UNSUPPORTED_CONDITION.
+    defaultStorageCondition: (process.env.RSL_DEFAULT_STORAGE_CONDITION || 'DRY').toUpperCase(),
   },
 };

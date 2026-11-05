@@ -153,7 +153,7 @@ function interpretation(status, sensors) {
     ? ` Parameter yang perlu diperhatikan: ${warn.join(', ')}.`
     : ' Seluruh parameter berada dalam batas aman.';
   const detail = SHOW_SENSOR_ZONES ? zoneDetail : '';
-  return `${lead}${detail} TVOC, suhu, dan kelembapan adalah parameter yang berkontribusi pada prediksi model, bukan pengukuran langsung terhadap kondisi mikrobiologis tahu.`;
+  return `${lead}${detail} TVOC, suhu, dan kelembapan adalah konteks pemantauan, bukan pengukuran langsung kondisi mikrobiologis; estimasi RSL memakai waktu berjalan, status sampel operator, dan referensi DRY, bukan nilai sensor.`;
 }
 
 const avg = (a) => {
@@ -232,7 +232,7 @@ export const mockApi = {
     const now = Date.now();
     const cards = S().chambers.map((c) => {
       const s = S().sessions.find((x) => x.chamberId === c.chamberId && x.status === 'aktif');
-      if (!s) return { chamber: chamberView(c, now), session: null, sensors: null, latestReading: null, chart: [] };
+      if (!s) return { chamber: chamberView(c, now), session: null, sensors: null, latestReading: null, chart: [], rsl: null };
       const { readings, predictions } = series(s, 15, now);
       const latest = readings[readings.length - 1];
       return {
@@ -241,6 +241,7 @@ export const mockApi = {
         latestReading: latest,
         sensors: sensorsOf(latest),
         chart: predictions.map((p) => ({ elapsedHours: p.elapsedHours, shelfLife: p.shelfLife })),
+        rsl: null,
       };
     });
     const active = cards.filter((c) => c.session).sort((a, b) => a.session.sisaDetik - b.session.sisaDetik);
@@ -307,6 +308,7 @@ export const mockApi = {
       activeSession: active ? sessionView(active) : null,
       latestReading: latest,
       sensors: sensorsOf(latest),
+      rsl: null,
       recentSessions: S().sessions.filter((x) => x.chamberId === no && x.status === 'selesai').sort((a, b) => b.selesai - a.selesai).slice(0, 5).map((x) => sessionView(x)),
     };
   },
@@ -359,10 +361,16 @@ export const mockApi = {
     };
     return {
       session: sessionView(s),
+      rslSnapshot: null,
       stats: { tvoc: stat('tvoc'), suhu: stat('suhu'), rh: stat('rh'), readings: readings.length, predictions: predictions.length },
       readings,
       predictions,
     };
+  },
+
+  async getRslSnapshots(chamberId) {
+    await delay(80);
+    return { chamberId: Number(chamberId), limit: 20, items: [] };
   },
 
   async getCondition({ chamberId, period }) {
@@ -374,7 +382,7 @@ export const mockApi = {
     const s =
       S().sessions.find((x) => x.chamberId === no && x.status === 'aktif') ||
       S().sessions.filter((x) => x.chamberId === no).sort((a, b) => b.masuk - a.masuk)[0];
-    const base = { chamber: chamberView(c), period: period || '24h', session: null, status: null, remainingSeconds: null, shelfLifeHours: null, modelUsed: null, sensors: null, risks: null, interpretation: interpretation(null, null), trend: [], history: [], stats: null, dataQuality: null };
+    const base = { chamber: chamberView(c), period: period || '24h', session: null, status: null, remainingSeconds: null, shelfLifeHours: null, modelUsed: null, sensors: null, risks: null, interpretation: interpretation(null, null), trend: [], history: [], stats: null, dataQuality: null, rsl: null };
     if (!s) return base;
     const v = sessionView(s);
     const { readings, predictions } = series(s, 5);
@@ -404,6 +412,7 @@ export const mockApi = {
       trend,
       history: readings.map((r) => ({ elapsedHours: round((new Date(r.timestamp).getTime() - s.masuk) / 3600000), suhu: r.suhu, rh: r.rh, tvoc: r.tvoc })),
       stats: { suhu: stat('suhu', 1), rh: stat('rh', 1), tvoc: stat('tvoc', 0) },
+      rsl: null,
       dataQuality: {
         readings: readings.length,
         lastReadingAt: readings[readings.length - 1].timestamp,

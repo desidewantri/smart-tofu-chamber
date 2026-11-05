@@ -1,10 +1,11 @@
 'use client';
 
-import { RefreshCw } from 'lucide-react';
+import Link from 'next/link';
+import { FlaskConical, RefreshCw } from 'lucide-react';
 import { api } from '@/services/api';
 import { useI18n } from '@/context/I18nContext';
 import { usePolling } from '@/lib/hooks';
-import { formatTime } from '@/lib/utils';
+import { formatDateTime, formatTime } from '@/lib/utils';
 import ChamberCard from '@/components/dashboard/ChamberCard';
 import IdleChamberCard from '@/components/dashboard/IdleChamberCard';
 import GreetingCard from '@/components/dashboard/GreetingCard';
@@ -17,7 +18,7 @@ export default function DashboardPage() {
   if (loading && !data) return <Loading />;
   if (error && !data) return <ErrorState error={error} onRetry={reload} />;
 
-  const { active, idle, zones, thresholds, updateIntervalMinutes } = data;
+  const { active, idle, zones, thresholds, updateIntervalMinutes, experiment } = data;
   // Selalu 2 kartu: Chamber 1 dan Chamber 2 (kartu kosong bila belum ada sesi aktif).
   const slots = [
     ...active.map((card) => ({ id: card.chamber.chamberId, card })),
@@ -27,6 +28,28 @@ export default function DashboardPage() {
   return (
     <div className="space-y-3">
       <GreetingCard active={active} idle={idle} zones={zones} fetchedAt={fetchedAt} />
+
+      {experiment && (
+        <section className="card flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-600/15">
+              <FlaskConical className="h-[18px] w-[18px]" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-700">{t('Eksperimen aktif')}</p>
+              <p className="truncate text-sm font-semibold text-slate-900">
+                {experiment.label || t('Tanpa label')} · {t('mulai')} {formatDateTime(experiment.startedAt)} · {experiment.storageCondition || 'DRY'}
+              </p>
+            </div>
+          </div>
+          <Link
+            href={`/analysis?tab=rsl&chamber=${active[0]?.chamber.chamberId || 1}`}
+            className="btn-outline !px-3 !py-1.5 !text-xs"
+          >
+            {t('Buka model RSL')}
+          </Link>
+        </section>
+      )}
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>

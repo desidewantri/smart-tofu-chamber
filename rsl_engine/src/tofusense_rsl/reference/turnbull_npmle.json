@@ -1,0 +1,32 @@
+{
+  "schema": "tofusense.rsl.turnbull_npmle/1",
+  "estimator": "TURNBULL_NPMLE",
+  "estimator_version": "v2.3",
+  "support_intervals": [
+    {
+      "lower": 23.068924444444445,
+      "upper": 24.633924444444443
+    },
+    {
+      "lower": 31.1388,
+      "upper": 32.233195555555554
+    }
+  ],
+  "probability_masses": [
+    0.33333333333353543,
+    0.6666666666664646
+  ],
+  "convergence": {
+    "converged": true,
+    "iterations": 41,
+    "log_likelihood": -1.9095425048862573,
+    "tolerance": 1e-12
+  },
+  "source_sessions": [
+    "S3",
+    "S4",
+    "S5"
+  ],
+  "identifiability": "masses are identified on maximal intersections only; the event-time distribution inside each support interval is not",
+  "mean_residual_life_available": false
+}

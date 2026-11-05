@@ -1,0 +1,41 @@
+{
+  "estimator": "TURNBULL_NPMLE",
+  "status": "POST_HOC_EXPLORATORY_DESCRIPTIVE",
+  "n_informative_dry_endpoints": 3,
+  "reference_intervals": [
+    [
+      23.068924444444445,
+      24.633924444444443
+    ],
+    [
+      26.193751111111112,
+      32.233195555555554
+    ],
+    [
+      31.1388,
+      42.888799999999996
+    ]
+  ],
+  "support_intervals": [
+    {
+      "a": 23.068924444444445,
+      "b": 24.633924444444443,
+      "mass": 0.33333333333353543
+    },
+    {
+      "a": 31.1388,
+      "b": 32.233195555555554,
+      "mass": 0.6666666666664646
+    }
+  ],
+  "mass_sums_to_one": 1.0,
+  "log_likelihood": -1.9095425048862573,
+  "n_iterations": 41,
+  "converged": true,
+  "n_candidate_cells": 5,
+  "non_identifiability": "the NPMLE identifies mass on maximal intersections only; the distribution inside each support interval is not identified, so 23.07, 24.63, 31.14 and 32.23 are interval boundaries, not event times",
+  "calculation_precision": "full source endpoint precision; rounding is presentation only",
+  "risk_set_rule": "strict U_i > elapsed_h on unrounded endpoints",
+  "mean_residual_life_reported": false,
+  "reason_no_mean": "not identifiable from three intervals without a distributional assumption"
+}

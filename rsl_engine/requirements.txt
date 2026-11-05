@@ -1,0 +1,5 @@
+# Runtime dependency of the frozen RSL engine. No ML/research stack is required.
+numpy>=1.26
+
+# Test-only.
+pytest>=8
