@@ -42,8 +42,10 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
   const count = { segera: 0, tidak: 0 };
   let waiting = 0;
   const rslCards = active.filter(({ rsl }) => rsl);
-  const rslAvailable = rslCards.filter(({ rsl }) => rsl.status === 'AVAILABLE' && rsl.primary).length;
-  const rslUnavailable = rslCards.length - rslAvailable;
+  const rslWithRange = rslCards.filter(({ rsl }) =>
+    (rsl.status === 'AVAILABLE' || rsl.status === 'REFERENCE_ONLY') && rsl.primary
+  ).length;
+  const rslUnavailable = rslCards.length - rslWithRange;
   active.forEach(({ session, rsl }) => {
     if (rsl) return;
     const seconds = session?.sisaDetik;
@@ -65,8 +67,8 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
   if (!active.length) summary = t('Belum ada tahu yang sedang disimpan.');
   else if (rslCards.length) {
     summary = rslUnavailable
-      ? t('{n} chamber memiliki rentang RSL historis; {m} belum tersedia.', { n: rslAvailable, m: rslUnavailable })
-      : t('{n} chamber memiliki rentang RSL historis.', { n: rslAvailable });
+      ? t('{n} chamber memiliki rentang RSL historis; {m} belum tersedia.', { n: rslWithRange, m: rslUnavailable })
+      : t('{n} chamber memiliki rentang RSL historis.', { n: rslWithRange });
   } else if (!parts.length && waiting) {
     summary = t('Menunggu prediksi pertama untuk {n} chamber.', { n: waiting });
   } else if (!parts.length) summary = t('Semua tahu di chamber masih layak dikonsumsi.');

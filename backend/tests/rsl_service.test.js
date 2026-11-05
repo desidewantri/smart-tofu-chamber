@@ -83,16 +83,25 @@ function fakeFetch(handler) {
   };
 }
 
-test('unknown operator sample status never calls the engine and never defaults to NOT_SPOILED', async () => {
-  let called = 0;
+test('unknown operator sample status returns reference-only output without mutating stored status', async () => {
+  let requestBody = null;
   const result = await rsl.estimateForSession(
     { experiment: EXPERIMENT, session: { ...SESSION, sampleStatus: 'UNKNOWN' }, now: NOW },
-    { fetchImpl: fakeFetch(() => { called += 1; return { body: enginePayload() }; }) }
+    {
+      fetchImpl: fakeFetch((url, options) => {
+        requestBody = JSON.parse(options.body);
+        return { body: enginePayload() };
+      }),
+    }
   );
-  assert.equal(result.status, 'UNAVAILABLE');
+  assert.equal(result.status, 'REFERENCE_ONLY');
+  assert.equal(result.referenceOnly, true);
   assert.equal(result.reason, 'SAMPLE_STATUS_UNKNOWN');
-  assert.equal(result.primary, null);
-  assert.equal(called, 0);
+  assert.equal(result.sampleStatus, 'UNKNOWN');
+  assert.ok(result.primary);
+  // The engine has no UNKNOWN vocabulary; the adapter queries the DRY
+  // reference explicitly while keeping the stored status UNKNOWN.
+  assert.equal(requestBody.sampleStatus, 'NOT_SPOILED');
 });
 
 test('DRY + NOT_SPOILED maps canonical M1/M2/M3 and keeps full precision', async () => {

@@ -12,7 +12,6 @@ import Modal from '@/components/common/Modal';
 import { useToast } from '@/components/common/Toast';
 import ShelfLifeTimer from './ShelfLifeTimer';
 import RslHeadline from './RslHeadline';
-import RslModelComparison from '@/components/rsl/RslModelComparison';
 import SampleStatusControl from './SampleStatusControl';
 import ShelfLifeChart from './ShelfLifeChart';
 import { SensorTile } from './SensorBar';
@@ -80,9 +79,6 @@ export default function ChamberCard({ card, zones, thresholds, fetchedAt, onChan
       {rsl ? (
         <div className="space-y-2">
           <RslHeadline rsl={rsl} />
-          {(rsl.primary || rsl.supporting?.M2 || rsl.supporting?.M3) && (
-            <RslModelComparison rsl={rsl} compact />
-          )}
           <SampleStatusControl
             experimentId={session.experimentId}
             sessionId={session.id}

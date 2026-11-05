@@ -36,6 +36,7 @@ function m3Output(m3, t) {
 }
 
 function statusForM1(rsl) {
+  if (rsl?.referenceOnly) return 'REFERENCE_ONLY';
   if (rsl?.primary) return 'AVAILABLE';
   return rsl?.status || 'UNAVAILABLE';
 }
@@ -59,7 +60,7 @@ export default function RslModelComparison({ rsl, compact = false, className = '
     {
       key: 'M1',
       label: 'M1 · Empirical interval',
-      role: t('Utama'),
+      role: rsl.referenceOnly ? t('Referensi') : t('Utama'),
       output: m1Output(primary, t),
       detail: primary
         ? `${t('Batas penuh')} ${interval(primary.lowerHours, primary.upperHours)} · ${t('{n} sesi referensi kering', { n: primary.nReferenceSessions ?? '—' })}`

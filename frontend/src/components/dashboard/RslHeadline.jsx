@@ -5,7 +5,7 @@ import { useI18n } from '@/context/I18nContext';
 import { cn, formatDateTime } from '@/lib/utils';
 
 const REASON_TEXT = {
-  SAMPLE_STATUS_UNKNOWN: 'Status sampel belum diinput',
+  SAMPLE_STATUS_UNKNOWN: 'Belum diverifikasi',
   SAMPLE_REPORTED_SPOILED: 'Sampel dilaporkan rusak',
   UNSUPPORTED_STORAGE_CONDITION: 'Kondisi penyimpanan tidak didukung',
   OUTSIDE_REFERENCE_SUPPORT: 'Di luar dukungan referensi historis',
@@ -21,7 +21,7 @@ const REASON_TEXT = {
 };
 
 const REASON_DETAIL = {
-  SAMPLE_STATUS_UNKNOWN: 'Tentukan status sampel di bawah sebelum meminta estimasi.',
+  SAMPLE_STATUS_UNKNOWN: 'Sampel belum diverifikasi operator. Gunakan “Catat kondisi sampel” untuk mencatat hasil observasi fisik bila tersedia.',
   SAMPLE_REPORTED_SPOILED: 'Tidak ada rentang sisa umur yang ditampilkan untuk sampel yang dilaporkan rusak.',
   UNSUPPORTED_STORAGE_CONDITION: 'Referensi beku hanya tersedia untuk penyimpanan kering (DRY).',
   OUTSIDE_REFERENCE_SUPPORT: 'Waktu berjalan sudah melewati seluruh batas atas referensi historis.',
@@ -64,6 +64,41 @@ export default function RslHeadline({ rsl, className = '' }) {
               rsl.metadata?.referenceStorageCondition || null,
               rsl.generatedAt || rsl.snapshotAt
                 ? `${rsl.isSnapshot ? t('snapshot') : t('dihitung')} ${formatDateTime(rsl.generatedAt || rsl.snapshotAt)}`
+                : null,
+            ].filter(Boolean).join(' · ')}
+          </p>
+        )}
+        <p className="mt-1 text-[11px] font-medium text-slate-600">
+          {t('Waktu berjalan')}: {fmt(rsl.elapsedHours, 2)} {t('jam sejak eksperimen dimulai')}
+        </p>
+      </div>
+    );
+  }
+
+  if (rsl.status === 'REFERENCE_ONLY' && rsl.primary) {
+    const { display, lowerHours, upperHours, nReferenceSessions } = rsl.primary;
+    return (
+      <div className={cn('rounded-xl bg-white/85 px-3.5 py-2.5 ring-1 ring-inset ring-slate-200/80', className)}>
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <BookOpenCheck className="h-3.5 w-3.5" /> {`M1 · ${t('Referensi historis')}`}
+        </p>
+        <p className="mt-0.5 flex flex-wrap items-baseline gap-1.5 font-bold tabular-nums text-brand-900">
+          <span className="text-[32px] leading-none">{display.lowerHours}–{display.upperHours}</span>
+          <span className="text-sm font-semibold text-slate-500">{t('jam')}</span>
+        </p>
+        <p className="mt-1 text-[11px] leading-snug text-slate-500">
+          {t('Batas penuh')}: {fmt(lowerHours)}–{fmt(upperHours)} {t('jam')} · {t('berbasis {n} sesi referensi kering', { n: nReferenceSessions })}
+        </p>
+        <p className="mt-1 text-[11px] leading-snug text-amber-700">
+          {t('Sampel belum diverifikasi operator. Ini referensi historis bersama, bukan prediksi individual dan bukan kondisi sampel yang dikonfirmasi.')}
+        </p>
+        {(rsl.metadata?.referenceVersion || rsl.generatedAt || rsl.snapshotAt) && (
+          <p className="mt-1 text-[11px] text-slate-500">
+            {[
+              rsl.metadata?.referenceVersion ? `${t('Referensi')} ${rsl.metadata.referenceVersion}` : null,
+              rsl.metadata?.referenceStorageCondition || null,
+              rsl.generatedAt || rsl.snapshotAt
+                ? `${t('dihitung')} ${formatDateTime(rsl.generatedAt || rsl.snapshotAt)}`
                 : null,
             ].filter(Boolean).join(' · ')}
           </p>
