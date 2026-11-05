@@ -100,6 +100,14 @@ test('predict mode mock tidak memanggil jaringan', async () => {
   assert.ok(r.shelfLifeJam > 0);
 });
 
+test('predict mode off disables ML without calling mock or live', async () => {
+  const r = await predict({ tvoc: 200, suhu: 25, rh: 70 }, 'off');
+  assert.equal(r.disabled, true);
+  assert.equal(r.source, 'off');
+  assert.equal(r.shelfLifeJam, null);
+  assert.equal(r.modelUsed, 'off');
+});
+
 test('predict mode live memetakan respons FastAPI', async () => {
   const original = global.fetch;
   global.fetch = async () => ({ ok: true, json: async () => ({ shelf_life_hours: 12.345, model_used: 'lstm' }) });

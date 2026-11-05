@@ -63,7 +63,7 @@ module.exports = {
     legacySourceId: process.env.SHEET_LEGACY_SOURCE_ID || '',
   },
   ml: {
-    mode: (process.env.ML_MODE || 'mock').toLowerCase(), // mock | live | auto
+    mode: (process.env.ML_MODE || 'mock').toLowerCase(), // mock | live | auto | off
     url: (process.env.ML_SERVICE_URL || 'http://127.0.0.1:8000').replace(/\/$/, ''),
     timeoutMs: Number(process.env.ML_TIMEOUT_MS) || 3000,
   },

@@ -325,6 +325,24 @@ async function ingestReading(payload, {
       features,
     });
 
+    // ML_MODE=off: keep the reading and reading count, but do not create a
+    // Prediction or advance session shelf-life fields. RSL is independent.
+    if (result.disabled) {
+      session = await SessionModel.findByIdAndUpdate(
+        session._id,
+        { $set: { readingCount: nT } },
+        { new: true }
+      );
+      return {
+        reading,
+        session,
+        prediction: null,
+        predictionError: null,
+        duplicate: false,
+        predictionDisabled: true,
+      };
+    }
+
     // Prediksi dicatat pada waktu sampel, bukan waktu terima, agar grafik dan
     // hitung mundur tetap kronologis saat ada data terlambat.
     const predictionTime = data.timestamp;
