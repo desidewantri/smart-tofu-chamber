@@ -96,10 +96,13 @@ function Body({ d, zones, fetchedAt }) {
   const status = live ? (unavailable ? null : classifyShelfLife(seconds / 3600, zones)) : d.status;
   const rsl = d.rsl;
   const rslAvailable = rsl?.status === 'AVAILABLE' && rsl.primary;
+  const rslReferenceOnly = rsl?.status === 'REFERENCE_ONLY' && rsl.primary;
   const rslStatusLabel = rslAvailable
     ? 'Rentang historis'
-    : rsl?.reason === 'SAMPLE_STATUS_UNKNOWN'
-      ? 'Status sampel belum diinput'
+    : rslReferenceOnly
+      ? 'Referensi historis'
+      : rsl?.reason === 'SAMPLE_STATUS_UNKNOWN'
+      ? 'Belum diverifikasi'
       : rsl?.reason === 'SAMPLE_REPORTED_SPOILED'
         ? 'Sampel dilaporkan rusak'
         : rsl
@@ -146,8 +149,8 @@ function Body({ d, zones, fetchedAt }) {
             {t('Sesi')} {d.session.sesiCode} · {d.chamber?.name || `Chamber ${d.session.chamberId}`}
           </p>
         </div>
-        <Kpi label={t(rslAvailable ? 'Rentang historis tersisa' : 'Perkiraan Sisa Umur')}>
-          {rslAvailable ? (
+        <Kpi label={t(rslAvailable ? 'Rentang historis tersisa' : rslReferenceOnly ? 'Referensi historis' : 'Perkiraan Sisa Umur')}>
+          {rslAvailable || rslReferenceOnly ? (
             <>
               <p className={cn('mt-1 text-2xl font-bold tabular-nums', style.text)}>
                 {rsl.primary.display.lowerHours}–{rsl.primary.display.upperHours} {t('jam')}
@@ -155,6 +158,9 @@ function Body({ d, zones, fetchedAt }) {
               <p className="text-[11px] text-slate-500">
                 {t('Batas penuh')} {rsl.primary.lowerHours.toFixed(2)}–{rsl.primary.upperHours.toFixed(2)} {t('jam')}
               </p>
+              {rslReferenceOnly && (
+                <p className="text-[11px] text-amber-700">{t('Sampel belum diverifikasi; bukan prediksi individual.')}</p>
+              )}
             </>
           ) : rsl ? (
             <p className="mt-1 text-lg font-bold text-slate-700">{t(rslStatusLabel)}</p>

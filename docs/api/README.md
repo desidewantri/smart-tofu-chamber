@@ -102,7 +102,7 @@ RSL adalah kapabilitas terpisah dari `ML_MODE` dan **tidak** memakai TVOC, suhu,
 atau RH. Elapsed time selalu `(serverNow - Experiment.startedAt) / 3600000`.
 Status sampel per chamber harus eksplisit:
 
-- `UNKNOWN` → `UNAVAILABLE`, reason `SAMPLE_STATUS_UNKNOWN`; tidak ada angka.
+- `UNKNOWN` → `REFERENCE_ONLY`, reason `SAMPLE_STATUS_UNKNOWN`; rentang referensi historis yang sama dengan `NOT_SPOILED` pada elapsed/DRY yang sama, ditandai `referenceOnly: true` dan `sampleStatus: UNKNOWN`. Bukan prediksi individual; status DB tetap `UNKNOWN`.
 - `NOT_SPOILED` → M1/M2/M3 bila kondisi `DRY` dan masih dalam support.
 - `SPOILED` → `UNAVAILABLE`, reason `SAMPLE_REPORTED_SPOILED`; tidak ada rentang.
 - `storageCondition` selain `DRY` → `UNAVAILABLE`, reason

@@ -270,19 +270,50 @@ async function estimateForSession(
   if (context.elapsedHours < 0) {
     return unavailable(context, 'NEGATIVE_ELAPSED_TIME', 'Waktu berjalan negatif');
   }
-  if (context.sampleStatus === 'UNKNOWN') {
-    return unavailable(
-      context,
-      'SAMPLE_STATUS_UNKNOWN',
-      'Status sampel belum diinput oleh operator'
-    );
-  }
   if (context.storageCondition !== 'DRY') {
     return unavailable(
       context,
       'UNSUPPORTED_STORAGE_CONDITION',
       'Kondisi penyimpanan ini tidak didukung oleh referensi DRY'
     );
+  }
+  // Reference-only path for unverified samples. The stored status stays
+  // UNKNOWN; the adapter queries the same DRY reference used for NOT_SPOILED
+  // but labels the result as unverified reference information, never as an
+  // individualized prediction or a confirmed sample condition.
+  if (context.sampleStatus === 'UNKNOWN') {
+    try {
+      const engineResponse = await callEngine(
+        {
+          elapsedHours: context.elapsedHours,
+          sampleStatus: 'NOT_SPOILED',
+          storageCondition: context.storageCondition,
+        },
+        { config, fetchImpl }
+      );
+      const normalized = normalizeEngineResponse(engineResponse, context);
+      if (normalized.status !== 'AVAILABLE' || !normalized.primary) {
+        return {
+          ...normalized,
+          sampleStatus: 'UNKNOWN',
+          referenceOnly: false,
+        };
+      }
+      return {
+        ...normalized,
+        status: 'REFERENCE_ONLY',
+        reason: 'SAMPLE_STATUS_UNKNOWN',
+        message:
+          'Rentang referensi historis untuk sampel yang belum diverifikasi; bukan prediksi individual.',
+        sampleStatus: 'UNKNOWN',
+        referenceOnly: true,
+      };
+    } catch (err) {
+      const reason = ['RSL_TIMEOUT', 'RSL_UNAVAILABLE', 'RSL_DISABLED'].includes(err.code)
+        ? err.code
+        : 'ENGINE_UNAVAILABLE';
+      return unavailable(context, reason, 'Layanan estimasi RSL tidak tersedia');
+    }
   }
 
   try {

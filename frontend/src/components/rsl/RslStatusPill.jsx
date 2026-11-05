@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 
 const LABEL = {
   AVAILABLE: 'Tersedia',
+  REFERENCE_ONLY: 'Referensi',
   OK: 'OK',
   UNAVAILABLE: 'Tidak tersedia',
   NOT_AVAILABLE: 'Tidak tersedia',
@@ -16,6 +17,7 @@ const LABEL = {
 
 const STYLE = {
   AVAILABLE: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+  REFERENCE_ONLY: 'bg-sky-50 text-sky-700 ring-sky-600/20',
   OK: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
   UNAVAILABLE: 'bg-slate-100 text-slate-600 ring-slate-500/20',
   NOT_AVAILABLE: 'bg-slate-100 text-slate-600 ring-slate-500/20',
