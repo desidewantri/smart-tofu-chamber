@@ -1,0 +1,11 @@
+{
+  "schema": "tofusense.rsl.weibull_a0/1",
+  "model": "WEIBULL_A0_PARAMETRIC_COMPARATOR",
+  "shape": 7.6967264161196045,
+  "scale": 30.757113200124557,
+  "survival": "S(t) = exp(-(t/scale)^shape)",
+  "conditional_quantile": "r = scale*((t/scale)^shape - ln(1-p))^(1/shape) - t",
+  "parameter_provenance": "interval-censored Weibull MLE computed offline by v2_3.weibull_comparator.WeibullComparator.fit on the three dry endpoints; no runtime fitting",
+  "support_restriction_h": 42.89,
+  "note": "comparator only; with three intervals the shape is unstable and the fit is not a validated distribution"
+}

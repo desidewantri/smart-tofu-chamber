@@ -11,6 +11,12 @@ import { formatDateTime, formatDurationShort, formatHoursLeft, formatRelative } 
 import { ConnectionBadge, StatusBadge } from '@/components/common/StatusBadge';
 import { ErrorState, Loading } from '@/components/common/States';
 import SensorBar from '@/components/dashboard/SensorBar';
+import ProvenanceBadge from '@/components/common/ProvenanceBadge';
+import RslHeadline from '@/components/dashboard/RslHeadline';
+import RslModelComparison from '@/components/rsl/RslModelComparison';
+import RslReferenceMetadata from '@/components/rsl/RslReferenceMetadata';
+import RslDataQuality from '@/components/rsl/RslDataQuality';
+import SampleStatusControl from '@/components/dashboard/SampleStatusControl';
 import { useToast } from '@/components/common/Toast';
 
 export default function ChamberDetailPage() {
@@ -25,7 +31,7 @@ export default function ChamberDetailPage() {
   if (loading && !data) return <Loading />;
   if (error && !data) return <ErrorState error={error} onRetry={reload} />;
 
-  const { chamber, activeSession, sensors, recentSessions } = data;
+  const { chamber, activeSession, latestReading, sensors, recentSessions, rsl } = data;
   const th = settings?.thresholds || { tvoc: { perhatian: 400 }, suhu: { perhatian: 30 }, rh: { perhatian: 85 } };
 
   async function save() {
@@ -58,7 +64,7 @@ export default function ChamberDetailPage() {
         <div>
           {editing ? (
             <div className="flex items-center gap-2">
-              <input className="input !w-64" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+              <input className="input !w-64" aria-label={t('Nama chamber')} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
               <button className="btn-primary !py-2" onClick={save}>{t('Simpan')}</button>
               <button className="btn-outline !py-2" onClick={() => setEditing(false)}>{t('Batal')}</button>
             </div>
@@ -71,11 +77,11 @@ export default function ChamberDetailPage() {
             </h2>
           )}
           <p className="mt-1 text-sm text-slate-500">
-            {t('Pembaruan terakhir')}: {formatRelative(chamber.lastSeenAt).toLowerCase()}
+            {t(chamber.connected ? 'Pembaruan terakhir' : 'Data terakhir')}: {formatRelative(chamber.lastSeenAt).toLowerCase()}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <ConnectionBadge enabled={chamber.enabled} connected={chamber.connected} />
+          <ConnectionBadge enabled={chamber.enabled} connected={chamber.connected} waiting={Boolean(activeSession && (activeSession.readingCount || 0) === 0)} />
           <button className="btn-outline !py-2" onClick={toggle}>
             <Power className="h-4 w-4" /> {chamber.enabled ? t('Nonaktifkan') : t('Aktifkan')}
           </button>
@@ -89,12 +95,34 @@ export default function ChamberDetailPage() {
             <div className="mt-4 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-lg font-bold">{activeSession.sesiCode}</span>
-                <StatusBadge status={activeSession.statusLayak} />
+                {rsl?.status === 'AVAILABLE' ? (
+                  <StatusBadge status="__rsl">{t('Rentang historis')}</StatusBadge>
+                ) : (
+                  <StatusBadge status={activeSession.statusLayak} />
+                )}
               </div>
+              {rsl && (
+                <div className="space-y-2">
+                  <RslHeadline rsl={rsl} />
+                  <SampleStatusControl
+                    experimentId={activeSession.experimentId}
+                    sessionId={activeSession.id}
+                    status={activeSession.sampleStatus}
+                    onChanged={reload}
+                  />
+                </div>
+              )}
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div><dt className="text-slate-500">{t('Tahu masuk')}</dt><dd className="font-medium">{formatDateTime(activeSession.masuk)}</dd></div>
                 <div><dt className="text-slate-500">{t('Berjalan')}</dt><dd className="font-medium">{formatDurationShort(activeSession.durasiDetik)}</dd></div>
-                <div><dt className="text-slate-500">{t('Sisa umur simpan')}</dt><dd className="font-medium">{formatHoursLeft(activeSession.sisaDetik)}</dd></div>
+                <div>
+                  <dt className="text-slate-500">{t(rsl?.status === 'AVAILABLE' ? 'Rentang historis tersisa' : 'Sisa umur simpan')}</dt>
+                  <dd className="font-medium">
+                    {rsl?.status === 'AVAILABLE' && rsl.primary
+                      ? `${rsl.primary.display.lowerHours}–${rsl.primary.display.upperHours} ${t('jam')}`
+                      : formatHoursLeft(activeSession.sisaDetik)}
+                  </dd>
+                </div>
                 <div><dt className="text-slate-500">{t('Jumlah pembacaan')}</dt><dd className="font-medium">{activeSession.readingCount}</dd></div>
               </dl>
               <div className="flex flex-wrap gap-2">
@@ -119,8 +147,19 @@ export default function ChamberDetailPage() {
           ) : (
             <p className="mt-4 text-sm text-slate-500">{t('Belum ada pembacaan sensor.')}</p>
           )}
+          <ProvenanceBadge reading={latestReading} className="mt-3" />
         </section>
       </div>
+
+      {rsl && (
+        <section className="space-y-4">
+          <RslModelComparison rsl={rsl} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <RslReferenceMetadata rsl={rsl} />
+            <RslDataQuality rsl={rsl} session={activeSession} latestReading={latestReading} chamber={chamber} />
+          </div>
+        </section>
+      )}
 
       <section className="card overflow-hidden">
         <div className="flex items-center justify-between p-5 sm:px-6">

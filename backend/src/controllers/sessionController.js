@@ -2,11 +2,13 @@ const { STATUS_RENAMES } = require('../utils/migrations');
 const Session = require('../models/Session');
 const Prediction = require('../models/Prediction');
 const SensorReading = require('../models/SensorReading');
+const Experiment = require('../models/Experiment');
+const RslSnapshot = require('../models/RslSnapshot');
 const SystemSetting = require('../models/SystemSetting');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { isObjectId, parsePaging } = require('../utils/params');
-const { sessionView, readingView, downsample } = require('../utils/presenters');
+const { sessionView, experimentView, readingView, rslSnapshotView, downsample } = require('../utils/presenters');
 
 async function findSession(idOrCode) {
   const s = isObjectId(idOrCode)
@@ -27,6 +29,7 @@ exports.list = asyncHandler(async (req, res) => {
   const { page, limit } = parsePaging(req.query);
   const filter = {};
   if (req.query.chamberId) filter.chamberId = Number(req.query.chamberId);
+  if (req.query.experimentId) filter.experimentId = req.query.experimentId;
   if (req.query.status === 'aktif' || req.query.status === 'selesai') filter.status = req.query.status;
   if (req.query.q) filter.sesiCode = new RegExp(escapeRegex(String(req.query.q).trim()), 'i');
   if (req.query.from || req.query.to) {
@@ -47,7 +50,14 @@ exports.list = asyncHandler(async (req, res) => {
 
   const sessions = await Session.find(filter).lean();
   const now = Date.now();
-  let views = sessions.map((s) => sessionView(s, settings.zones, now));
+  const experimentIds = [...new Set(sessions.map((s) => s.experimentId).filter(Boolean).map(String))];
+  const experiments = experimentIds.length
+    ? await Experiment.find({ _id: { $in: experimentIds } }).lean()
+    : [];
+  const expMap = new Map(experiments.map((e) => [String(e._id), e]));
+  let views = sessions.map((s) =>
+    sessionView(s, settings.zones, now, expMap.get(String(s.experimentId))?.startedAt)
+  );
 
   if (req.query.sort === 'masuk') {
     views.sort((a, b) => new Date(b.masuk) - new Date(a.masuk));
@@ -64,10 +74,16 @@ exports.list = asyncHandler(async (req, res) => {
 exports.detail = asyncHandler(async (req, res) => {
   const settings = await SystemSetting.get();
   const session = await findSession(req.params.id);
-  const [readings, preds] = await Promise.all([
+  const [readings, preds, snapshot] = await Promise.all([
     SensorReading.find({ sesiId: session._id }).sort({ timestamp: 1 }).lean(),
     Prediction.find({ sesiId: session._id }).sort({ prediksiDibuat: 1 }).lean(),
+    RslSnapshot.findOne({ sessionId: session._id }).lean(),
   ]);
+  const experiment = session.experimentId
+    ? await Experiment.findById(session.experimentId).lean()
+    : null;
+  const start = experiment?.startedAt || session.masuk;
+  const t0 = start ? new Date(start).getTime() : null;
 
   const stat = (key) => {
     const v = readings.map((r) => r[key]);
@@ -78,17 +94,18 @@ exports.detail = asyncHandler(async (req, res) => {
       avg: Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 100) / 100,
     };
   };
-  const t0 = new Date(session.masuk).getTime();
   res.json({
     success: true,
     data: {
-      session: sessionView(session, settings.zones),
+      experiment: experimentView(experiment),
+      session: sessionView(session, settings.zones, Date.now(), experiment?.startedAt),
+      rslSnapshot: rslSnapshotView(snapshot),
       stats: { tvoc: stat('tvoc'), suhu: stat('suhu'), rh: stat('rh'), readings: readings.length, predictions: preds.length },
       readings: downsample(readings.map(readingView)),
       predictions: downsample(
         preds.map((p) => ({
           t: p.prediksiDibuat,
-          elapsedHours: Math.round(((new Date(p.prediksiDibuat) - t0) / 3600000) * 100) / 100,
+          elapsedHours: t0 === null ? null : Math.round(((new Date(p.prediksiDibuat) - t0) / 3600000) * 100) / 100,
           shelfLifeJam: p.shelfLifeJam,
           modelUsed: p.modelUsed,
         }))

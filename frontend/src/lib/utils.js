@@ -30,12 +30,16 @@ export function formatDurationLong(totalSec) {
  * 23940 -> "±6 jam"
  */
 export function hoursLeft(totalSec) {
-  return Math.floor(Math.max(0, totalSec || 0) / 3600);
+  if (totalSec === null || totalSec === undefined || Number.isNaN(Number(totalSec))) return null;
+  return Math.floor(Math.max(0, Number(totalSec)) / 3600);
 }
 export function formatHoursLeft(totalSec) {
   const en = getLang() === 'en';
+  if (totalSec === null || totalSec === undefined || Number.isNaN(Number(totalSec))) {
+    return en ? 'Waiting for prediction' : 'Menunggu prediksi';
+  }
   const h = hoursLeft(totalSec);
-  if ((totalSec || 0) <= 0) return en ? 'Expired' : 'Habis';
+  if (Number(totalSec) <= 0) return en ? 'Expired' : 'Habis';
   if (h < 1) return en ? '< 1 hr' : '< 1 jam';
   return en ? `±${h} hr` : `±${h} jam`;
 }

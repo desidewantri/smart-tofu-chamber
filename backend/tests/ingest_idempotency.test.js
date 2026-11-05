@@ -44,6 +44,52 @@ test('a valid MQTT message is stored once with its identity', async () => {
   assert.equal(reading.timestamp.toISOString(), '2026-11-05T00:00:00.000Z');
 });
 
+test('an ESP32 temp/humid payload is persisted with the same identity and deduplicates', async () => {
+  const store = createMemoryStore();
+  const aliasPayload = {
+    sample_id: 'tofusense-FCF5C46F0E2C-1793817129-1',
+    device_id: 'tofusense-FCF5C46F0E2C',
+    chamber_id: 1,
+    tvoc: 98,
+    temp: 27.54,
+    humid: 79.59,
+    sampled_at: '2026-11-05T00:00:00Z',
+  };
+  const first = await ingest(store, aliasPayload);
+  assert.equal(first.duplicate, false);
+  const reading = store.state.readings[0];
+  assert.equal(reading.suhu, 27.54);
+  assert.equal(reading.rh, 79.59);
+  assert.equal(reading.eventId, 'tofusense-FCF5C46F0E2C-1793817129-1-ch1');
+  assert.equal(reading.timestamp.toISOString(), '2026-11-05T00:00:00.000Z');
+
+  // The canonical firmware format for the same event must deduplicate.
+  const second = await ingest(store, mqttPayload());
+  assert.equal(second.duplicate, true);
+  assert.equal(store.state.readings.length, 1);
+  assert.equal(store.state.predictions.length, 1);
+});
+
+test('an ESP32 temperature/humidity payload is persisted', async () => {
+  const store = createMemoryStore();
+  const aliasPayload = {
+    sample_id: 'tofusense-FCF5C46F0E2C-1793817129-2',
+    device_id: 'tofusense-FCF5C46F0E2C',
+    chamber_id: 2,
+    tvoc: 111,
+    temperature: 27.53,
+    humidity: 78.92,
+    sampled_at: '2026-11-05T00:00:00Z',
+  };
+  const result = await ingest(store, aliasPayload);
+  assert.equal(result.duplicate, false);
+  const reading = store.state.readings[0];
+  assert.equal(reading.chamberId, 2);
+  assert.equal(reading.suhu, 27.53);
+  assert.equal(reading.rh, 78.92);
+  assert.equal(reading.eventId, 'tofusense-FCF5C46F0E2C-1793817129-2-ch2');
+});
+
 test('the same MQTT event arriving twice is stored once', async () => {
   const store = createMemoryStore();
   await ingest(store, mqttPayload());

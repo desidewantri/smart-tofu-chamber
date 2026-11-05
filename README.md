@@ -111,6 +111,73 @@ dari dua jalur. `SHEET_MODE=fallback` tetap disarankan untuk data lama yang belu
 - Kolom `source` di `sensorreadings` mencatat jalur data: `mqtt`, `sheet` (cadangan), atau `http`.
 - Cek: `docker compose -f docker-compose.prod.yml logs -f backend` → `[mqtt] terhubung`, `[mqtt] smartchamber/sensor/1 -> CH-...`.
 
+## Eksperimen (dua chamber, satu batch)
+
+1. Login, lalu `POST /api/experiments` dengan body `{"label":"Sesi 5 - IoT","storageCondition":"DRY"}`.
+2. Backend membuat **satu** experiment dan **dua** sesi chamber dengan `experimentId` yang sama. `Experiment.startedAt` menjadi acuan elapsed time/RSL; `Session.masuk` baru terisi saat reading pertama.
+3. Sensor hanya masuk ke sesi eksperimen aktif. Tanpa eksperimen aktif, MQTT/HTTP/Sheet tidak membuat sesi baru.
+4. Stop dengan `POST /api/experiments/:id/stop`; kedua sesi ditutup dengan `endedAt` yang sama.
+5. Jika start ditolak `409` karena sesi lama masih aktif, tutup sesi itu dulu. Sesi historis (mis. CH-009/CH-010) tidak digabung otomatis.
+
+Detail endpoint dan contoh `curl`: [docs/api/README.md](docs/api/README.md).
+
+## SSA / RSL (statistik, terpisah dari ML)
+
+Mesin RSL v2.3 adalah kapabilitas statistik terpisah dari `ML_MODE=mock/live`.
+Ia **tidak** memakai TVOC, suhu, atau RH sebagai prediktor. Inputnya hanya waktu
+berjalan sejak `Experiment.startedAt`, status sampel yang diisi operator, dan
+kondisi penyimpanan `DRY`.
+
+- **M1** — empirical interval envelope; **hasil utama** di dashboard. Ini rentang
+  historis, **bukan confidence interval** dan bukan jaminan keamanan individu.
+- **M2** — Turnbull NPMLE conditional support; analisis pendukung. Massa di dalam
+  support tidak teridentifikasi.
+- **M3** — Weibull A0 comparator; eksploratif dan tidak stabil dengan tiga endpoint.
+
+Status sampel per chamber harus diisi operator (`NOT_SPOILED` / `SPOILED`).
+`UNKNOWN` tidak pernah dianggap `NOT_SPOILED` dan tidak menghasilkan RSL normal.
+Status dapat diubah lewat dashboard atau
+`PATCH /api/experiments/:id/sessions/:sessionId/sample-status`.
+
+Saat eksperimen dihentikan, backend menyimpan **snapshot RSL final** untuk kedua
+chamber dalam koleksi `rslsnapshots`. Snapshot memakai satu `endedAt` bersama,
+menyimpan nilai M1 presisi penuh, display rounding, M2/M3, status sample, dan
+alasan unavailable. Snapshot tidak dihitung ulang saat halaman riwayat dibuka.
+Notifikasi lonceng dan WhatsApp untuk RSL memakai **batas bawah M1** yang sama
+dengan dashboard; tidak ada countdown mock atau fallback angka.
+
+Eksperimen menyimpan status kelengkapan snapshot (`rslSnapshotStatus` PENDING /
+COMPLETE) dan status finalisasi terpisah (`finalizationStatus` PENDING /
+COMPLETE). Jika satu atau kedua snapshot gagal ditulis, eksperimen tetap ditutup
+dengan `endedAt` asli dan status PENDING. Worker rekonsiliasi mengisi snapshot yang
+hilang menggunakan `endedAt` asli, tidak menimpa snapshot yang sudah ada, lalu
+menandai COMPLETE setelah dua dokumen terverifikasi.
+
+Finalisasi hanya COMPLETE jika eksperimen sudah ditutup, kedua sesi chamber sudah
+ditutup, dan kedua snapshot kanonik sudah ada. Sesi yang masih aktif karena
+kegagalan penutupan akan ditutup oleh worker menggunakan `endedAt` asli; sesi yang
+sudah sah ditutup lebih awal mempertahankan timestamp lamanya. Riwayat menampilkan
+“Snapshot RSL sedang dipulihkan” atau “Finalisasi eksperimen sedang dipulihkan”
+sampai proses selesai.
+
+Runtime: `rsl_service/` (Python internal, port 8001) memuat `rsl_engine/` yang
+berisi salinan byte-identik modul kanonik v2.3. Tidak ada training/refit saat
+runtime. Di Docker Compose produksi, service ini internal (`expose`, bukan
+`ports`) dan backend memanggil `http://rsl:8001`.
+
+```bash
+# lokal
+PYTHONPATH=rsl_engine/src python3 -m rsl_service.server
+curl -s localhost:8001/health
+
+# backend lokal
+export RSL_SERVICE_URL=http://127.0.0.1:8001
+```
+
+Batas ilmiah: tiga sesi referensi kering (S3/S4/S5), S1/S2 water-storage
+dikecualikan, dan kontribusi TVOC belum terbukti. Lihat
+[`rsl_engine/docs/MODEL_LIMITATIONS.md`](rsl_engine/docs/MODEL_LIMITATIONS.md).
+
 ## Server (VPS) dengan HTTPS
 
 Semua berjalan di Docker: MongoDB, Mosquitto, backend, frontend, dan Caddy (HTTPS otomatis).
@@ -153,7 +220,7 @@ Belum punya token? Isi `WA_DRY_RUN=true` di `backend/.env`: pesan tidak dikirim,
 Catatan: Fonnte adalah gateway tidak resmi. Paket gratisnya cukup untuk demo (sekitar 1.000 pesan per bulan, dengan watermark), tetapi nomor pengirim bisa diblokir WhatsApp bila dipakai untuk spam. Untuk penggunaan jangka panjang, ganti ke WhatsApp Cloud API resmi; cukup ubah `backend/src/services/whatsappService.js`.
 
 ## Konfigurasi
-- `backend/.env`: port, URL MongoDB/MQTT, `JWT_SECRET`, `DEVICE_API_KEY`, `ML_MODE`, `ML_SERVICE_URL`. Contoh di `.env.example`.
+- `backend/.env`: port, URL MongoDB/MQTT, `JWT_SECRET`, `DEVICE_API_KEY`, `ML_MODE`, `ML_SERVICE_URL`, `RSL_SERVICE_URL`, `RSL_TIMEOUT_MS`, `RSL_SNAPSHOT_RECOVERY_INTERVAL_SEC`. Contoh di `.env.example`.
 - `frontend/.env.local`: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_USE_MOCK`. Ubah env lalu restart `npm run dev`.
 
 ## Menyambungkan ml-service (bagian teman)
@@ -170,13 +237,15 @@ Catatan: Fonnte adalah gateway tidak resmi. Paket gratisnya cukup untuk demo (se
 
 ## Tes
 ```bash
-cd backend && npm test        # 98 tes unit (identitas, dedup, Sheet, MQTT, firmware contract, dll.)
+cd backend && npm test        # 193 tes unit (identitas, dedup, eksperimen, importer, Sheet, MQTT, RSL, firmware contract, dll.)
+PYTHONPATH=rsl_engine/src python3 -m pytest rsl_engine/tests rsl_service/tests -q   # 88 tes engine + service
 ```
 
 ## Yang sudah dan belum diverifikasi
 Diuji di lingkungan pengembangan saya:
-- Backend: 98 tes unit lulus; rute tanpa database dicek (health, 401, validasi 400).
-- Frontend: `next build` lulus; semua halaman dibuka di browser headless (mode demo) tanpa error konsol; alur login, tutup sesi, tab Analysis, tampilan mobile dicek.
+- Backend: 193 tes unit lulus; rute tanpa database dicek (health, 401, validasi 400).
+- Frontend: `next build` lulus; semua halaman dibuka di browser headless tanpa error konsol; alur login, tutup sesi, tab Analysis, RSL M1/M2/M3, status sampel, tampilan mobile dicek.
+- RSL: 75 tes engine + 11 tes service + 2 tes baseline beku; paritas numerik dengan v2.3 dan API lokal diuji end-to-end.
 
 **Belum teruji** (tidak bisa dijalankan di lingkungan saya, jadi mungkin perlu penyesuaian kecil saat pertama dijalankan):
 - Backend terhubung ke MongoDB asli, `npm run seed`, alur MQTT lewat Mosquitto, dan `npm run simulate`.
@@ -189,6 +258,8 @@ Bila ada galat saat menjalankan, kirimkan pesan galatnya.
 - Prediksi dari model tiruan **bukan** hasil ML. Angka koreksinya asumsi.
 - Hubungan TVOC ↔ jumlah bakteri pada tahu belum tervalidasi oleh jurnal yang kami temukan. Batas parameter sensor (Settings) dan asumsi Biaya & Manfaat adalah titik awal yang harus disesuaikan dengan data uji lab.
 - Teks di Analysis menyatakan bahwa TVOC/suhu/RH adalah parameter pendukung prediksi, bukan pengukuran langsung kondisi mikrobiologis.
+- RSL M1 adalah **empirical interval envelope** dari tiga sesi referensi kering. Jangan menyebutnya confidence interval, prediksi probabilistik, atau jaminan keamanan pangan.
+- M2/M3 adalah analisis pendukung. M2 bergantung pada estimator; M3 hanya komparator eksploratif. Tidak ada angka sensor yang menjadi input RSL.
 
 ## Masalah umum
 | Gejala | Solusi |

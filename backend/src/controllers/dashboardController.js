@@ -2,19 +2,28 @@ const Chamber = require('../models/Chamber');
 const Session = require('../models/Session');
 const SensorReading = require('../models/SensorReading');
 const Prediction = require('../models/Prediction');
+const Experiment = require('../models/Experiment');
+const NotificationEvent = require('../models/NotificationEvent');
 const SystemSetting = require('../models/SystemSetting');
 const asyncHandler = require('../utils/asyncHandler');
-const { latestBattery } = require('../services/batteryService');
-const { STATUS, classifyShelfLife, remainingSeconds } = require('../utils/status');
-const { sessionView, readingView, sensorZones, chamberView, downsample, isConnected } = require('../utils/presenters');
+const { sessionView, experimentView, readingView, sensorZones, chamberView, downsample, isConnected } = require('../utils/presenters');
 const { batteryLevel, LOW_PERCENT } = require('../utils/battery');
+const rslService = require('../services/rslService');
 
 /**
  * Status baterai alat: diambil dari chamber yang paling baru melaporkan baterai
  * (satu alat melayani Chamber 1 dan 2, jadi nilainya sama).
  */
-/** Baterai alat dari data sensor terakhir (lihat services/batteryService.js). */
-const batteryStatus = (settings, now = Date.now()) => latestBattery(settings, now);
+async function batteryStatus(settings, now = Date.now()) {
+  const c = await Chamber.findOne({ battery: { $ne: null } }).sort({ batteryAt: -1 }).lean();
+  if (!c) return { percent: null, level: null, at: null, stale: false };
+  return {
+    percent: c.battery,
+    level: batteryLevel(c.battery),
+    at: c.batteryAt,
+    stale: !isConnected({ lastSeenAt: c.batteryAt }, settings, now),
+  };
+}
 exports.batteryStatus = batteryStatus;
 
 /** GET /api/battery */
@@ -29,32 +38,50 @@ exports.dashboard = asyncHandler(async (_req, res) => {
   const now = Date.now();
   const chambers = await Chamber.find().sort({ chamberId: 1 });
   const sessions = await Session.find({ status: 'aktif' });
+  const activeExperiment = await Experiment.findOne({ status: 'aktif' }).lean();
+  const experimentStartedAt = activeExperiment?.startedAt || null;
   const byChamber = new Map(sessions.map((s) => [s.chamberId, s]));
 
   const cards = await Promise.all(
     chambers.map(async (c) => {
       const session = byChamber.get(c.chamberId) || null;
-      const base = { chamber: chamberView(c, settings, now), session: null, sensors: null, latestReading: null, chart: [] };
+      const base = {
+        chamber: chamberView(c, settings, now),
+        session: null,
+        sensors: null,
+        latestReading: null,
+        chart: [],
+        rsl: null,
+      };
       if (!session) return base;
 
-      const [latest, preds] = await Promise.all([
+      const [latest, preds, rsl] = await Promise.all([
         SensorReading.findOne({ sesiId: session._id }).sort({ timestamp: -1 }).lean(),
         Prediction.find({ sesiId: session._id }).sort({ prediksiDibuat: 1 }).lean(),
+        // Legacy active sessions without experimentId keep their old dashboard
+        // behavior; never attach fabricated experiment/RSL metadata to them.
+        session.experimentId && activeExperiment &&
+        String(session.experimentId) === String(activeExperiment._id)
+          ? rslService.estimateForSession({ experiment: activeExperiment, session, now })
+          : Promise.resolve(null),
       ]);
-      const t0 = new Date(session.masuk).getTime();
+      const t0 = experimentStartedAt
+        ? new Date(experimentStartedAt).getTime()
+        : (session.masuk ? new Date(session.masuk).getTime() : null);
       const chart = downsample(
         preds.map((p) => ({
-          elapsedHours: Math.round(((new Date(p.prediksiDibuat) - t0) / 3600000) * 100) / 100,
+          elapsedHours: t0 === null ? null : Math.round(((new Date(p.prediksiDibuat) - t0) / 3600000) * 100) / 100,
           shelfLife: p.shelfLifeJam,
         })),
         200
       );
       return {
         ...base,
-        session: sessionView(session, settings.zones, now),
+        session: sessionView(session, settings.zones, now, experimentStartedAt),
         latestReading: readingView(latest),
         sensors: sensorZones(latest, settings.thresholds),
         chart,
+        rsl,
       };
     })
   );
@@ -73,59 +100,78 @@ exports.dashboard = asyncHandler(async (_req, res) => {
       updateIntervalMinutes: settings.updateIntervalMinutes,
       zones: settings.zones,
       thresholds: settings.thresholds,
+      experiment: experimentView(activeExperiment),
       active,
       idle,
     },
   });
 });
 
-/** GET /api/notifications : notifikasi turunan dari kondisi saat ini (tanpa koleksi tambahan). */
+/** GET /api/notifications : persisted RSL alerts + offline/battery context. */
 exports.notifications = asyncHandler(async (_req, res) => {
   const settings = await SystemSetting.get();
-  // Semua jenis notifikasi selalu aktif (tidak ada saklar di aplikasi).
-  const n = { onTidakLayak: true, onSegeraJual: true, onOffline: true, onLowBattery: true };
   const now = Date.now();
   const items = [];
+  const onOffline = settings.notifications?.onOffline !== false;
+  const onLowBattery = settings.notifications?.onLowBattery !== false;
+
+  const activeExperiment = await Experiment.findOne({ status: 'aktif' }).lean();
+  if (activeExperiment) {
+    const events = await NotificationEvent.find({ experimentId: activeExperiment._id })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+    for (const e of events) {
+      items.push({
+        id: `rsl-${e._id}`,
+        level: e.level,
+        chamberId: e.chamberId,
+        experimentId: String(e.experimentId),
+        kind: e.kind,
+        title: e.title,
+        message: e.message,
+        disclaimer: e.disclaimer || null,
+        thresholdHours: e.thresholdHours,
+        lowerHours: e.lowerHours,
+        upperHours: e.upperHours,
+        time: e.createdAt,
+      });
+    }
+  }
 
   const chambers = await Chamber.find();
   const sessions = await Session.find({ status: 'aktif' });
   const chamberOf = new Map(chambers.map((c) => [c.chamberId, c]));
 
-  sessions.forEach((s) => {
-    const c = chamberOf.get(s.chamberId);
-    const label = c ? c.name : `Chamber ${s.chamberId}`;
-    const sisa = remainingSeconds(s.toObject(), now);
-    const status = sisa === null ? null : classifyShelfLife(sisa / 3600, settings.zones);
-    if (status === STATUS.TIDAK && n.onTidakLayak) {
-      items.push({
-        id: `tidak-${s._id}`, level: 'danger', chamberId: s.chamberId,
-        title: `${label} Tidak Layak Konsumsi`,
-        message: `Sisa umur simpan ${s.sesiCode} kurang dari ${settings.zones.rawanHours} jam.`,
-        time: s.prediksiDibuat,
-      });
-    } else if (status === STATUS.SEGERA && n.onSegeraJual) {
-      items.push({
-        id: `segera-${s._id}`, level: 'warning', chamberId: s.chamberId,
-        title: `${label} Segera Konsumsi`,
-        message: `Sisa umur simpan ${s.sesiCode} kurang dari ${settings.zones.segarHours} jam.`,
-        time: s.prediksiDibuat,
-      });
+  if (onOffline) {
+    for (const s of sessions) {
+      const c = chamberOf.get(s.chamberId);
+      if (!c || !c.enabled || !s.masuk) continue;
+      if (!chamberView(c, settings, now).connected) {
+        const label = c.name || `Chamber ${s.chamberId}`;
+        items.push({
+          id: `offline-${c._id}`,
+          level: 'info',
+          chamberId: c.chamberId,
+          experimentId: s.experimentId ? String(s.experimentId) : null,
+          kind: 'offline',
+          title: `${label} terputus`,
+          message: 'Chamber dengan sesi aktif tidak mengirim data. Periksa koneksi perangkat.',
+          time: c.lastSeenAt,
+        });
+      }
     }
-    if (n.onOffline && c && !chamberView(c, settings, now).connected) {
-      items.push({
-        id: `offline-${c._id}`, level: 'info', chamberId: c.chamberId,
-        title: `${label} terputus`,
-        message: 'Chamber dengan sesi aktif tidak mengirim data. Periksa koneksi perangkat.',
-        time: c.lastSeenAt,
-      });
-    }
-  });
+  }
 
-  if (n.onLowBattery) {
+  if (onLowBattery) {
     const b = await batteryStatus(settings, now);
     if (b.percent !== null && !b.stale && b.percent < LOW_PERCENT) {
       items.push({
-        id: 'battery-low', level: 'warning', chamberId: null,
+        id: 'battery-low',
+        level: 'warning',
+        chamberId: null,
+        experimentId: activeExperiment ? String(activeExperiment._id) : null,
+        kind: 'battery_low',
         title: 'Baterai alat lemah',
         message: `Baterai tinggal ${b.percent}%. Segera isi daya agar sensor tetap mengirim data.`,
         time: b.at,
@@ -147,6 +193,8 @@ exports.health = (mqttStatus, env) =>
       db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
       mqtt: mqttStatus(),
       mlMode: env.ml.mode,
+      rsl: { enabled: env.rsl.enabled },
+      rslSnapshotRecovery: require('../services/rslSnapshotService').status(),
       uptimeSeconds: Math.round(process.uptime()),
       time: new Date().toISOString(),
     });

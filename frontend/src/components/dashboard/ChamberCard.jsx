@@ -11,20 +11,28 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import Modal from '@/components/common/Modal';
 import { useToast } from '@/components/common/Toast';
 import ShelfLifeTimer from './ShelfLifeTimer';
+import RslHeadline from './RslHeadline';
+import RslModelComparison from '@/components/rsl/RslModelComparison';
+import SampleStatusControl from './SampleStatusControl';
 import ShelfLifeChart from './ShelfLifeChart';
 import { SensorTile } from './SensorBar';
+import ProvenanceBadge from '@/components/common/ProvenanceBadge';
 
 /** Kartu chamber ringkas: seluruh isi muat dalam satu layar, tanpa gulir panjang. */
 export default function ChamberCard({ card, zones, thresholds, fetchedAt, onChanged }) {
-  const { chamber, session, sensors, chart } = card;
+  const { chamber, session, sensors, chart, latestReading, rsl } = card;
   const { toast } = useToast();
   const { t } = useI18n();
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const seconds = useCountdown(session.sisaDetik, fetchedAt);
-  const status = classifyShelfLife(seconds / 3600, zones);
-  const style = STATUS_STYLES[status] || NEUTRAL_STYLE;
+  const unavailable = seconds === null || seconds === undefined || Number.isNaN(Number(seconds));
+  const status = unavailable ? null : classifyShelfLife(seconds / 3600, zones);
+  // When the RSL engine is attached, M1 is the headline. The legacy mock
+  // prediction must not drive the card's color or status.
+  const style = rsl ? NEUTRAL_STYLE : STATUS_STYLES[status] || NEUTRAL_STYLE;
+  const hasReading = (session.readingCount || 0) > 0;
 
   async function closeSession() {
     setBusy(true);
@@ -56,31 +64,51 @@ export default function ChamberCard({ card, zones, thresholds, fetchedAt, onChan
           </div>
         </div>
         <div className="shrink-0 text-right">
-          <p className={cn('flex items-center justify-end gap-1.5 text-xs font-semibold', chamber.connected ? 'text-emerald-600' : 'text-slate-400')}>
-            <span className={cn('h-2 w-2 rounded-full', chamber.connected ? 'bg-emerald-500' : 'bg-slate-400')} />
-            {chamber.connected ? t('Terhubung') : t('Terputus')}
+          <p className={cn('flex items-center justify-end gap-1.5 text-xs font-semibold', hasReading && chamber.connected ? 'text-emerald-700' : 'text-slate-400')}>
+            <span className={cn('h-2 w-2 rounded-full', hasReading && chamber.connected ? 'bg-emerald-500' : 'bg-slate-400')} />
+            {!hasReading ? t('Menunggu data') : chamber.connected ? t('Terhubung') : t('Terputus')}
           </p>
           <p className="text-[11px] text-slate-500">
-            {t('Diperbarui')} {formatRelative(chamber.lastSeenAt).toLowerCase()}
+            {!hasReading
+              ? t('Belum ada data')
+              : `${t(chamber.connected ? 'Diperbarui' : 'Data terakhir')} ${formatRelative(chamber.lastSeenAt).toLowerCase()}`}
           </p>
         </div>
       </header>
 
-      {/* Hitung mundur + status */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/80 px-3.5 py-2 ring-1 ring-inset ring-slate-200/70">
-        <ShelfLifeTimer seconds={seconds} textClass={style.text} />
-        <StatusBadge status={status} className="!px-3 !py-1 !text-[13px]" />
-      </div>
+      {/* RSL M1 headline (primary) or legacy prediction for historical sessions */}
+      {rsl ? (
+        <div className="space-y-2">
+          <RslHeadline rsl={rsl} />
+          {(rsl.primary || rsl.supporting?.M2 || rsl.supporting?.M3) && (
+            <RslModelComparison rsl={rsl} compact />
+          )}
+          <SampleStatusControl
+            experimentId={session.experimentId}
+            sessionId={session.id}
+            status={session.sampleStatus}
+            onChanged={onChanged}
+          />
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/80 px-3.5 py-2 ring-1 ring-inset ring-slate-200/70">
+            <ShelfLifeTimer seconds={seconds} textClass={style.text} />
+            <StatusBadge status={status} className="!px-3 !py-1 !text-[13px]">
+              {unavailable ? 'Menunggu prediksi' : undefined}
+            </StatusBadge>
+          </div>
 
-      {/* Grafik */}
-      <section>
-        <h3 className="mb-0.5 text-xs font-semibold text-slate-700 [@media(max-height:700px)]:hidden">{t('Perkiraan Sisa Umur Simpan')}</h3>
-        {chart.length > 1 ? (
-          <ShelfLifeChart data={chart} zones={zones} color={style.hex} heightClass="h-[150px] [@media(max-height:700px)]:h-[112px] [@media(min-height:800px)]:h-[175px]" />
-        ) : (
-          <p className="rounded-xl bg-white/70 py-10 text-center text-sm text-slate-500">{t('Menunggu prediksi pertama…')}</p>
-        )}
-      </section>
+          <section>
+            <h3 className="mb-0.5 text-xs font-semibold text-slate-700 [@media(max-height:700px)]:hidden">{t('Perkiraan Sisa Umur Simpan')}</h3>
+            {chart.length > 1 ? (
+              <ShelfLifeChart data={chart} zones={zones} color={style.hex} heightClass="h-[150px] [@media(max-height:700px)]:h-[112px] [@media(min-height:800px)]:h-[175px]" />
+            ) : (
+              <p className="rounded-xl bg-white/70 py-10 text-center text-sm text-slate-500">{t('Menunggu prediksi pertama…')}</p>
+            )}
+          </section>
+        </>
+      )}
 
       {/* Sensor */}
       <section>
@@ -94,6 +122,7 @@ export default function ChamberCard({ card, zones, thresholds, fetchedAt, onChan
         ) : (
           <p className="text-sm text-slate-500">{t('Belum ada pembacaan sensor.')}</p>
         )}
+        <ProvenanceBadge reading={latestReading} className="mt-1.5" />
       </section>
 
       {/* Tombol */}

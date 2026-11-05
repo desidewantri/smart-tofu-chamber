@@ -1,0 +1,70 @@
+{
+  "elapsed_h": 24.63,
+  "elapsed_origin": "FIRST_SENSOR_TIMESTAMP",
+  "storage_condition": "DRY",
+  "sample_status": "NOT_SPOILED",
+  "primary_method": "M1_EMPIRICAL_ENVELOPE",
+  "primary_rsl": {
+    "lower_h": 0.0,
+    "upper_h": 18.258799999999997,
+    "interpretation": "EMPIRICAL_INTERVAL_ENVELOPE"
+  },
+  "methods": {
+    "M1": {
+      "method": "M1_EMPIRICAL_ENVELOPE",
+      "status": "OK",
+      "lower_h": 0.0,
+      "upper_h": 18.258799999999997,
+      "interpretation": "EMPIRICAL_INTERVAL_ENVELOPE",
+      "label": "EMPIRICAL INTERVAL ENVELOPE - NOT A PROBABILISTIC PREDICTION INTERVAL OR CONFIDENCE INTERVAL.",
+      "n_reference_sessions": 3,
+      "n_at_risk_sessions": 3
+    },
+    "M2": {
+      "method": "M2_TURNBULL_NPMLE",
+      "label": "TURNBULL_NPMLE_CONDITIONAL_SUPPORT",
+      "status": "OK",
+      "advisory": "ESTIMATOR_DEPENDENT - POTENTIALLY ANTI-CONSERVATIVE",
+      "note": "estimator-dependent support; components are not confidence intervals and the mass inside a support interval is not identified",
+      "n_components": 2,
+      "components": [
+        {
+          "lower_h": 0.0,
+          "upper_h": 0.003924444444443509,
+          "mass": 0.33333333333353543
+        },
+        {
+          "lower_h": 6.508800000000001,
+          "upper_h": 7.603195555555555,
+          "mass": 0.6666666666664646
+        }
+      ]
+    },
+    "M3": {
+      "method": "M3_WEIBULL_A0",
+      "label": "WEIBULL_A0_PARAMETRIC_COMPARATOR",
+      "status": "OK",
+      "available": true,
+      "shape": 7.6967264161196045,
+      "scale": 30.757113200124557,
+      "r10_h": 1.5134460534801768,
+      "r90_h": 9.985756480560642,
+      "support_warning": null,
+      "suppress_from_dashboard": false,
+      "note": "parametric comparator only; not the primary estimate"
+    }
+  },
+  "n_reference_sessions": 3,
+  "n_at_risk_sessions": 3,
+  "tvoc_contribution": "NOT_ESTABLISHED",
+  "status": "OK",
+  "caveats": [
+    "POST_HOC_EXPLORATORY",
+    "DESCRIPTIVE",
+    "THREE_INFORMATIVE_DRY_ENDPOINTS",
+    "BATCH_INDEPENDENCE_UNVERIFIED",
+    "TIME_ORIGIN_IS_FIRST_SENSOR_TIMESTAMP",
+    "NOT_A_PROBABILISTIC_PREDICTION_INTERVAL",
+    "TVOC_CONTRIBUTION_NOT_ESTABLISHED"
+  ]
+}

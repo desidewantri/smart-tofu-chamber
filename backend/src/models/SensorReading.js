@@ -25,8 +25,8 @@ const sensorReadingSchema = new mongoose.Schema(
     timestamp: { type: Date, required: true },
     sampledAt: { type: Date, default: null },
     receivedAt: { type: Date, default: null },
-    timestampSource: { type: String, enum: ['sampled', 'received_at', null], default: null },
-    timestampQuality: { type: String, enum: ['OK', 'MISSING', 'INVALID', null], default: null },
+    timestampSource: { type: String, enum: ['sampled', 'sample_id', 'received_at', 'missing', null], default: null },
+    timestampQuality: { type: String, enum: ['OK', 'SAMPLE_ID', 'MISSING', 'INVALID', null], default: null },
     // Jalur masuk data: mqtt | sheet | http (null = data lama sebelum kolom ini ada)
     source: { type: String, enum: ['mqtt', 'sheet', 'http', null], default: null },
     // Semua jalur yang pernah membawa event ini (mqtt dan/atau sheet).

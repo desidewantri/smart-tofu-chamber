@@ -94,6 +94,16 @@ const realApi = {
   getNotifications: () => request('GET', '/notifications').then((j) => j.data),
   getBattery: () => request('GET', '/battery').then((j) => j.data),
 
+  // experiments / RSL
+  getRsl: (experimentId, chamberId) =>
+    request('GET', `/experiments/${experimentId}/rsl/${chamberId}`).then((j) => j.data),
+  getRslAnalysis: (experimentId, chamberId) =>
+    request('GET', `/experiments/${experimentId}/rsl/${chamberId}/analysis`).then((j) => j.data),
+  getRslSnapshots: (chamberId, limit = 20) =>
+    request('GET', '/rsl/snapshots', { query: { chamberId, limit } }).then((j) => j.data),
+  updateSampleStatus: (experimentId, sessionId, body) =>
+    request('PATCH', `/experiments/${experimentId}/sessions/${sessionId}/sample-status`, { body }).then((j) => j.data),
+
   // chambers
   getChambers: (q) => request('GET', '/chambers', { query: { q } }).then((j) => j.data),
   getChamber: (id) => request('GET', `/chambers/${id}`).then((j) => j.data),

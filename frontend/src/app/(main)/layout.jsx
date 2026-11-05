@@ -25,10 +25,16 @@ export default function MainLayout({ children }) {
 
   return (
     <div className="min-h-screen">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[70] focus:rounded-xl focus:bg-white focus:px-3.5 focus:py-2 focus:text-sm focus:font-semibold focus:text-brand-800 focus:shadow-pop"
+      >
+        {t('Lewati ke konten utama')}
+      </a>
       <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
       <div className="lg:pl-[17rem]">
         <Topbar onMenu={() => setMenuOpen(true)} />
-        <main className="mx-auto w-full max-w-[1400px] px-4 pb-5 pt-1 sm:px-7 [@media(max-height:700px)]:pb-1">{children}</main>
+        <main id="main-content" className="mx-auto w-full max-w-[1400px] px-4 pb-5 pt-1 sm:px-7 [@media(max-height:700px)]:pb-1">{children}</main>
       </div>
     </div>
   );

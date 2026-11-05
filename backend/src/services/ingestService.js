@@ -2,6 +2,7 @@ const Chamber = require('../models/Chamber');
 const Session = require('../models/Session');
 const SensorReading = require('../models/SensorReading');
 const Prediction = require('../models/Prediction');
+const Experiment = require('../models/Experiment');
 const ApiError = require('../utils/ApiError');
 const predictionService = require('./predictionService');
 const { parseBattery } = require('../utils/battery');
@@ -34,8 +35,8 @@ function validatePayload(p, topicChamberId, receivedAt = new Date()) {
   }
   const chamberId = num(p.chamber_id ?? p.chamberId ?? topicChamberId);
   const tvoc = num(p.tvoc);
-  const suhu = num(p.suhu ?? p.temperature);
-  const rh = num(p.rh ?? p.humidity);
+  const suhu = num(p.suhu ?? p.temperature ?? p.temp);
+  const rh = num(p.rh ?? p.humidity ?? p.humid);
 
   if (!Number.isInteger(chamberId) || chamberId < 1 || chamberId > MAX_CHAMBERS) {
     throw new ApiError(400, `chamber_id harus 1 sampai ${MAX_CHAMBERS} (hanya ada ${MAX_CHAMBERS} chamber)`);
@@ -79,32 +80,9 @@ function validatePayload(p, topicChamberId, receivedAt = new Date()) {
   };
 }
 
-async function createSession(data, SessionModel) {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const last = await SessionModel.findOne().sort({ seq: -1 }).select('seq').lean();
-    const seq = (last?.seq || 0) + 1;
-    try {
-      return await SessionModel.create({
-        seq,
-        sesiCode: SessionModel.codeFor(seq),
-        chamberId: data.chamberId,
-        status: 'aktif',
-        masuk: data.timestamp,
-        tvoc_awal: data.tvoc,
-        suhu_awal: data.suhu,
-        rh_awal: data.rh,
-      });
-    } catch (err) {
-      if (err.code !== 11000) throw err;
-      // Sesi aktif sudah dibuat oleh pesan lain secara bersamaan -> pakai itu.
-      const existing = await SessionModel.findOne({ chamberId: data.chamberId, status: 'aktif' });
-      if (existing) return existing;
-    }
-  }
-  throw new ApiError(500, 'Gagal membuat sesi baru');
-}
-
-/** Duplikat: catat provenance tambahan, jangan sentuh sesi/prediksi/hitungan. */
+/**
+ * Duplikat: catat provenance tambahan, jangan sentuh sesi/prediksi/hitungan.
+ */
 async function handleDuplicate(data, models, source) {
   const { Session, SensorReading } = models;
   const existing = await SensorReading.findOne({ eventId: data.eventId });
@@ -113,6 +91,23 @@ async function handleDuplicate(data, models, source) {
     await SensorReading.updateOne({ _id: existing._id }, { $addToSet: { sources: source } });
   }
   const session = existing.sesiId ? await Session.findById(existing.sesiId) : null;
+  // Heal a session that got a reading but no audit timestamp (e.g. a retry
+  // after a transient failure between insert and session update).
+  if (session && !session.masuk) {
+    const healed = await Session.findByIdAndUpdate(
+      session._id,
+      {
+        $set: {
+          masuk: existing.timestamp,
+          tvoc_awal: existing.tvoc,
+          suhu_awal: existing.suhu,
+          rh_awal: existing.rh,
+        },
+      },
+      { new: true }
+    );
+    return { reading: existing, session: healed, prediction: null, predictionError: null, duplicate: true };
+  }
   return { reading: existing, session, prediction: null, predictionError: null, duplicate: true };
 }
 
@@ -121,7 +116,7 @@ async function handleDuplicate(data, models, source) {
  * 0) identitas event + waktu sampel
  * 1) bila event sudah ada -> duplikat, tidak ada efek samping
  * 2) validasi + simpan SensorReading (unique eventId)
- * 3) bila chamber belum punya sesi aktif -> buat sesi baru (satu sesi = satu batch tahu)
+ * 3) cari sesi aktif dari eksperimen aktif (tidak pernah membuat sesi dari pesan)
  * 4) panggil ML (atau mock) -> simpan Prediction
  * 5) update shelfLifeAwal & prediksiDibuat (t0) hanya bila waktu sampel lebih baru
  */
@@ -130,24 +125,81 @@ async function ingestReading(payload, {
   seenAt,
   receivedAt = null,
   source = null,
+  timestampSource = null,
+  timestampQuality = null,
 } = {}, deps = null) {
-  const models = deps?.models || { Chamber, Session, SensorReading, Prediction };
+  const models = deps?.models || { Chamber, Session, SensorReading, Prediction, Experiment };
   const predictor = deps?.predictionService || predictionService;
   const { Chamber: ChamberModel, Session: SessionModel, SensorReading: ReadingModel,
-    Prediction: PredictionModel } = models;
+    Prediction: PredictionModel, Experiment: ExperimentModel } = models;
 
   // `seenAt` dipertahankan untuk kompatibilitas pemanggil lama; waktu terima
   // sekarang eksplisit dan tidak pernah dipakai sebagai waktu sampel.
   const receptionTime = receivedAt ? new Date(receivedAt) : (seenAt ? new Date(seenAt) : new Date());
   const data = validatePayload(payload, topicChamberId, receptionTime);
-
-  if (data.eventId) {
-    const duplicate = await handleDuplicate(data, models, source);
-    if (duplicate) return duplicate;
+  // Sheet ingestion may preserve a validated derivation source (for example a
+  // timestamp extracted from sample_id) without changing the MQTT contract.
+  // Only relabel an accepted sample time; a future/invalid value must keep the
+  // normal resolver's INVALID/received_at outcome instead of being masked.
+  if (timestampSource && timestampQuality && data.timestampQuality === 'OK') {
+    data.timestampSource = timestampSource;
+    data.timestampQuality = timestampQuality;
   }
 
-  let session = await SessionModel.findOne({ chamberId: data.chamberId, status: 'aktif' });
-  if (!session) session = await createSession(data, SessionModel);
+  const experiment = await ExperimentModel.findOne({ status: 'aktif' });
+  if (!experiment) {
+    throw new ApiError(409, 'Tidak ada eksperimen aktif. Mulai eksperimen terlebih dahulu.', {
+      code: 'NO_ACTIVE_EXPERIMENT',
+    });
+  }
+  const participating = Array.isArray(experiment.chamberIds) ? experiment.chamberIds : [1, 2];
+  if (!participating.includes(data.chamberId)) {
+    throw new ApiError(409, `Chamber ${data.chamberId} tidak termasuk dalam eksperimen aktif`, {
+      code: 'CHAMBER_NOT_IN_EXPERIMENT',
+      experimentId: String(experiment._id),
+      chamberId: data.chamberId,
+    });
+  }
+  let session = await SessionModel.findOne({
+    experimentId: experiment._id,
+    chamberId: data.chamberId,
+    status: 'aktif',
+  });
+  if (!session) {
+    throw new ApiError(
+      409,
+      `Sesi aktif chamber ${data.chamberId} untuk eksperimen ini tidak ditemukan`,
+      {
+        code: 'MISSING_EXPERIMENT_SESSION',
+        experimentId: String(experiment._id),
+        chamberId: data.chamberId,
+      }
+    );
+  }
+
+  // Deduplicate only after the parent experiment and chamber session have been
+  // resolved. A late duplicate from a closed experiment must not mutate the
+  // historical reading's provenance.
+  if (data.eventId) {
+    const duplicate = await handleDuplicate(data, models, source);
+    if (duplicate) {
+      const duplicateExperimentId = duplicate.session?.experimentId;
+      if (
+        !duplicateExperimentId ||
+        String(duplicateExperimentId) !== String(experiment._id)
+      ) {
+        throw new ApiError(
+          409,
+          'Data duplikat berasal dari eksperimen yang sudah selesai',
+          {
+            code: 'DUPLICATE_OUTSIDE_ACTIVE_EXPERIMENT',
+            eventId: data.eventId,
+          }
+        );
+      }
+      return duplicate;
+    }
+  }
 
   let reading;
   try {
@@ -173,9 +225,44 @@ async function ingestReading(payload, {
     if (err.code === 11000 && data.eventId) {
       // Lost a race with the same event from the other source.
       const duplicate = await handleDuplicate(data, models, source);
-      if (duplicate) return duplicate;
+      if (duplicate) {
+        if (
+          !duplicate.session?.experimentId ||
+          String(duplicate.session.experimentId) !== String(experiment._id)
+        ) {
+          throw new ApiError(
+            409,
+            'Data duplikat berasal dari eksperimen yang sudah selesai',
+            { code: 'DUPLICATE_OUTSIDE_ACTIVE_EXPERIMENT', eventId: data.eventId }
+          );
+        }
+        return duplicate;
+      }
     }
     throw err;
+  }
+
+  // First accepted reading: populate chamber audit timestamp and baseline.
+  // Experiment sessions are created without sensor values or a first-reading time.
+  if (!session.masuk) {
+    session = await SessionModel.findByIdAndUpdate(
+      session._id,
+      {
+        $set: {
+          masuk: data.timestamp,
+          tvoc_awal: data.tvoc,
+          suhu_awal: data.suhu,
+          rh_awal: data.rh,
+        },
+      },
+      { new: true }
+    );
+    if (!session) {
+      throw new ApiError(409, `Sesi chamber ${data.chamberId} hilang saat ingest`, {
+        code: 'MISSING_EXPERIMENT_SESSION',
+        chamberId: data.chamberId,
+      });
+    }
   }
 
   await ChamberModel.findOneAndUpdate(
@@ -212,8 +299,9 @@ async function ingestReading(payload, {
       .slice(-HISTORY_WINDOW)
       .map((r) => ({ tvoc: r.tvoc, suhu: r.suhu, rh: r.rh, timestamp: r.timestamp }));
 
-    // Fitur untuk model mock: umur sesi, baseline TVOC (nilai terendah sesi), suhu rata-rata, TVOC 1,5 jam terakhir.
-    const t0 = new Date(session.masuk).getTime();
+    // Fitur untuk model mock: umur eksperimen, baseline TVOC, suhu rata-rata, TVOC 1,5 jam terakhir.
+    // New experiments use the shared Experiment.startedAt; Session.masuk stays audit-only.
+    const t0 = new Date(experiment.startedAt || session.masuk).getTime();
     const hoursOf = (ts) => (new Date(ts).getTime() - t0) / 3600000;
     const lowest = await ReadingModel.findOne({ sesiId: session._id }).sort({ tvoc: 1 }).select('tvoc').lean();
     const suhuMean = recent.reduce((acc, r) => acc + r.suhu, 0) / Math.max(1, recent.length);

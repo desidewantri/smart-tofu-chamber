@@ -20,8 +20,10 @@ flowchart TD
 
     ING --> ID["event_id = sample_id-chN<br/>unique partial index"]
     ID --> DB[("MongoDB<br/>sensorreadings / sesis / predictions")]
-    DB --> API["Express REST /api"]
-    API --> WEB["Next.js dashboard<br/>polling 10 s"]
+    DB --> API["Express REST /api<br/>RSL adapter"]
+    API -->|"internal HTTP :8001<br/>elapsed + status + DRY"| RSL["Python RSL service<br/>frozen v2.3 engine"]
+    RSL --> API
+    API --> WEB["Next.js dashboard<br/>M1 primary + M2/M3"]
 ```
 
 ## Firmware: ada beberapa varian
@@ -75,6 +77,11 @@ event_id (ch n)    = <sample_id>-ch<n>
 | `timestampSource` | `sampled` / `received_at` |
 | `timestampQuality` | `OK` / `MISSING` / `INVALID` |
 
+Toleransi waktu sampel di masa depan adalah **15 menit** dari waktu terima.
+Firmware memakai NTP; toleransi ini menyerap clock skew/network delay normal,
+sedangkan skew lebih besar ditandai `INVALID` dan waktu terima dipakai. RSL tidak
+memakai timestamp sampel sebagai acuan; ia memakai `Experiment.startedAt`.
+
 Waktu terima tidak pernah dipalsukan sebagai waktu sampel. Event yang datang
 terlambat tetap diurutkan menurut `sampled_at`, dan t0 sesi tidak bergerak mundur.
 
@@ -91,6 +98,33 @@ saat request diterima. Importer memperlakukannya sebagai `receivedAt`, bukan
 
 Untuk firmware baru yang selalu mengirim `sample_id`, kedua mode menghasilkan
 satu dokumen per event. `fallback` tetap disarankan agar data lama tidak dobel.
+Sheet hanya diimpor jika ada eksperimen aktif dan sesi chamber yang sesuai; tanpa
+itu importer tidak membuat sesi/reading dan akan mencoba lagi pada poll berikutnya.
+
+### Importer outcomes dan quarantine
+
+`ImportCursor` tetap menjadi high-water mark per chamber. Setiap baris juga
+mencatat `ImportReceipt` durable dengan identitas `sheet:<sourceId>:<rowIndex>:ch<n>`
+dan fingerprint baris. Status terminal (`IMPORTED`, `DUPLICATE`,
+`QUARANTINED_INVALID`, `UNASSIGNED`, `QUARANTINED_INTEGRITY`,
+`QUARANTINED_RETRY_EXHAUSTED`) memajukan cursor; `RETRYABLE_ERROR` tidak.
+`UNASSIGNED` dan `QUARANTINED_INVALID` tidak pernah otomatis dimasukkan ke
+eksperimen berikutnya; reproses harus dilakukan operator secara eksplisit.
+
+Kebijakan sementara: TVOC `99999` pada baris Sheet dianggap sentinel invalid
+(`INVALID_TVOC_SENTINEL`) dan di-quarantine, bukan diubah menjadi 0. Validasi
+MQTT tidak diubah karena kontrak data belum menetapkan aturan yang sama untuk
+semua sumber. `SHEET_MODE` default sekarang `fallback`; produksi tetap harus
+menyetel nilainya secara eksplisit.
+
+Importer memakai lock proses (`running`) dan lease 5 menit (diperbarui tiap 50 baris) pada `ImportCursor`.
+Proses kedua yang mencoba chamber yang sama akan mendapat `locked` dan mencoba
+lagi pada poll berikutnya; lease kedaluwarsa otomatis setelah crash.
+
+**Recovery operator:** baris `UNASSIGNED`/`QUARANTINED_*` tidak diproses ulang
+otomatis. Untuk mencoba lagi, operator harus menghapus receipt terkait (atau
+mengubah statusnya menjadi `RETRYABLE_ERROR`) dan memundurkan cursor baris secara
+eksplisit. Jangan menghapus receipt tanpa mencatat alasan.
 
 ## Broker dan keamanan
 
@@ -114,13 +148,82 @@ Konsekuensi yang harus disadari:
   mencegah data ganda saat keduanya tiba.
 - Tidak ada LWT. Status "Terputus" dihitung dari `chamber.lastSeenAt` (3× interval).
 
+## RSL / SSA (statistik)
+
+RSL adalah jalur terpisah dari prediksi mock/ml-service. Diagram di atas
+menambahkan service Python internal yang memuat snapshot runtime dari matematika
+v2.3 beku.
+
+- `rsl_engine/` — paket portabel. `src/v2_3/` adalah salinan byte-identik modul
+  kanonik; `src/tofusense_rsl/` adalah facade M1/M2/M3 + reference JSON.
+- `rsl_service/` — HTTP internal (`/health`, `/version`, `/estimate`), hanya
+  `numpy`, tanpa fitting/training/network.
+- `backend/src/services/rslService.js` — adapter Node: resolves experiment/session,
+  `Experiment.startedAt` elapsed, explicit sample status, storage condition,
+  timeout, response validation/normalization.
+- `M1` adalah headline; `M2`/`M3` hanya di area analisis.
+- TVOC/RH/suhu **tidak pernah** dikirim ke engine. Sensor tetap monitoring context.
+- `UNKNOWN` sample status, `SPOILED`, `WATER`/`UNKNOWN` storage, negative elapsed,
+  outside support, timeout, dan malformed response semuanya menghasilkan
+  `UNAVAILABLE` dengan reason eksplisit; tidak ada angka pengganti.
+- Saat stop, `experimentService` menutup eksperimen dengan `endedAt` dan
+  `rslSnapshotStatus: PENDING` terlebih dahulu, menutup kedua sesi dengan timestamp
+  yang sama, lalu memanggil reconciliation untuk menghitung/menyimpan snapshot.
+  Snapshot pertama canonical; stop berulang tidak menimpa.
+- Worker `rslSnapshotService` memindai eksperimen yang snapshot atau finalisasinya
+  PENDING, memakai `endedAt` asli, menutup sesi orphan, hanya mengisi snapshot yang
+  hilang, lalu memverifikasi dua sesi + dua snapshot sebelum menandai finalisasi
+  COMPLETE. Lease + backoff mencegah loop rapat dan duplikasi lintas proses.
+- `rslSnapshotStatus` dan `finalizationStatus` terpisah: snapshot bisa COMPLETE
+  sementara satu sesi masih aktif; finalisasi tetap PENDING sampai sesi ditutup.
+- `notifierService` memakai `rslService` yang sama. Ambang normal memakai M1
+  `lowerHours`; event disimpan di `notificationevents` dengan unique identity.
+  Tidak ada fallback ke mock countdown.
+- `display.lowerHours/upperHours` dibulatkan ke bawah/atas untuk presentasi;
+  nilai `lowerHours/upperHours` di API tetap presisi penuh.
+
+## Siklus eksperimen
+
+Satu eksperimen mengelompokkan dua sesi chamber untuk batch tahu yang sama.
+
+```text
+Experiment { startedAt, endedAt, status, chamberIds:[1,2] }
+  └── Session chamber 1 { experimentId, masuk (first reading), ... }
+  └── Session chamber 2 { experimentId, masuk (first reading), ... }
+```
+
+- `POST /api/experiments` membuat satu experiment dan dua sesi aktif. Tidak ada
+  `tvoc_awal`/`suhu_awal`/`rh_awal` yang dibuat saat start; nilai itu diisi saat
+  reading pertama diterima.
+- `Experiment.startedAt` dibuat server (UTC) dan tidak pernah diubah oleh pesan
+  terlambat.
+- `Session.masuk` adalah waktu reading pertama per chamber, bukan acuan RSL.
+- Ingestion mencari sesi dengan `{ experimentId, chamberId, status:'aktif' }`.
+  Tidak ada pembuatan sesi dari pesan MQTT/HTTP/Sheet.
+- Tanpa eksperimen aktif, ingestion ditolak `NO_ACTIVE_EXPERIMENT`; MQTT tetap
+  hidup dan mencatat error, HTTP mengembalikan 409, Sheet tidak menulis.
+- `POST /api/experiments/:id/stop` menutup kedua sesi dengan satu `endedAt` dan
+  idempotent. Sesi historis tanpa `experimentId` tidak disentuh.
+- Elapsed time/RSL untuk eksperimen baru memakai
+  `(serverNow - Experiment.startedAt) / 3600000`; sesi historis tetap memakai
+  `Session.masuk` untuk audit, bukan sebagai acuan RSL baru.
+- Status sampel adalah field operator per sesi: `UNKNOWN` (awal), `NOT_SPOILED`,
+  `SPOILED`, dengan `sampleStatusHistory`. Tidak pernah disimpulkan dari sensor.
+- `storageCondition` per experiment/sesi: `DRY` didukung; `WATER`/`UNKNOWN`
+  menghasilkan `UNSUPPORTED_STORAGE_CONDITION` tanpa meminjam referensi DRY.
+
+Sesi lama (mis. CH-009/CH-010) tetap terpisah dan `experimentId`-nya null. Jangan
+menggabungkannya tanpa bukti eksplisit.
+
 ## Alur satu pembacaan
 
 1. ESP32 membangun `sample_id` + `sampled_at`, membaca 4 sensor.
 2. Publish dua pesan MQTT (chamber 1 dan 2), lalu satu baris Sheet.
 3. `mqttService` memvalidasi dan memanggil `ingestReading`.
-4. `ingestService` menurunkan `eventId`, menolak duplikat, membuat sesi bila perlu,
-   menyimpan reading, memanggil prediksi (mock/ml-service), memperbarui sesi.
+4. `ingestService` menurunkan `eventId`, menolak duplikat, mencari sesi dari
+   eksperimen aktif (`experimentId + chamberId + status:'aktif'`), menyimpan
+   reading, memanggil prediksi (mock/ml-service), memperbarui sesi. Tidak ada
+   pembuatan sesi dari pesan sensor.
 5. `sheetImportService` (60 s) membaca baris baru; baris yang sudah masuk lewat
    MQTT ditolak oleh `eventId`.
 6. REST API mengirim data; dashboard polling 10 s dan hitung mundur lokal 1 s.
@@ -132,3 +235,5 @@ Konsekuensi yang harus disadari:
   belum diintegrasikan.
 - Baterai dan deep sleep di luar cakupan fase ini.
 - Broker prod belum TLS.
+- Sesi aktif lama tanpa `experimentId` harus ditutup manual sebelum eksperimen
+  baru; start akan menolak dengan 409.

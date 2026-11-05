@@ -107,6 +107,9 @@ export default function Topbar({ onMenu }) {
                       <span className="min-w-0">
                         <span className="block text-sm font-semibold text-slate-900">{t(n.title)}</span>
                         <span className="block text-xs text-slate-500">{t(n.message)}</span>
+                        {n.disclaimer && (
+                          <span className="mt-0.5 block text-[10px] leading-snug text-slate-400">{t(n.disclaimer)}</span>
+                        )}
                         <span className="mt-0.5 block text-[11px] text-slate-400">{formatRelative(n.time)}</span>
                       </span>
                     </Link>

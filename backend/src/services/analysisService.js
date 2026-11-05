@@ -2,10 +2,12 @@ const Chamber = require('../models/Chamber');
 const Session = require('../models/Session');
 const Prediction = require('../models/Prediction');
 const SensorReading = require('../models/SensorReading');
+const Experiment = require('../models/Experiment');
 const SystemSetting = require('../models/SystemSetting');
 const ApiError = require('../utils/ApiError');
 const { classifyShelfLife, remainingSeconds, STATUS } = require('../utils/status');
-const { sessionView, readingView, sensorZones, chamberView, downsample } = require('../utils/presenters');
+const { sessionView, experimentView, readingView, sensorZones, chamberView, downsample } = require('../utils/presenters');
+const rslService = require('./rslService');
 
 const PERIODS = { '24h': 24, '7d': 168, '30d': 720, '90d': 2160, '180d': 4320, '365d': 8760 };
 const periodToHours = (p, fallback) => PERIODS[p] || fallback;
@@ -61,8 +63,9 @@ function buildInterpretation(status, sensors) {
   const detail = SHOW_SENSOR_ZONES ? zoneDetail : '';
 
   return (
-    `${lead}${detail} TVOC, suhu, dan kelembapan adalah parameter yang berkontribusi pada prediksi model, ` +
-    'bukan pengukuran langsung terhadap kondisi mikrobiologis tahu.'
+    `${lead}${detail} TVOC, suhu, dan kelembapan adalah konteks pemantauan, bukan pengukuran ` +
+    'langsung kondisi mikrobiologis; estimasi RSL memakai waktu berjalan, status sampel operator, ' +
+    'dan referensi DRY, bukan nilai sensor.'
   );
 }
 
@@ -201,6 +204,8 @@ async function getCondition({ chamberId, period }) {
   const base = {
     chamber: chamberView(chamber, settings),
     period: period || '24h',
+    experiment: null,
+    experimentStartedAt: null,
     session: null,
     status: null,
     remainingSeconds: null,
@@ -213,6 +218,7 @@ async function getCondition({ chamberId, period }) {
     history: [],
     stats: null,
     dataQuality: null,
+    rsl: null,
   };
   if (!session) return base;
 
@@ -226,7 +232,11 @@ async function getCondition({ chamberId, period }) {
       .lean(),
   ]);
 
-  const masukMs = new Date(session.masuk).getTime();
+  const experiment = session.experimentId
+    ? await Experiment.findById(session.experimentId).lean()
+    : null;
+  const start = experiment?.startedAt || session.masuk;
+  const masukMs = start ? new Date(start).getTime() : Date.now();
   const endMs = session.selesai ? new Date(session.selesai).getTime() : Date.now();
   const history = downsample(
     readings.map((r) => ({
@@ -253,6 +263,9 @@ async function getCondition({ chamberId, period }) {
 
   const sisa = remainingSeconds(session.toObject());
   const status = sisa === null ? null : classifyShelfLife(sisa / 3600, settings.zones);
+  const rsl = experiment && session.status === 'aktif'
+    ? await rslService.estimateForSession({ experiment, session, now: Date.now() })
+    : null;
   const sensors = sensorZones(latest, settings.thresholds);
   const risks = sensors
     ? Object.fromEntries(Object.entries(sensors).map(([k, v]) => [k, riskNote(k, v.zone)]))
@@ -261,14 +274,16 @@ async function getCondition({ chamberId, period }) {
   const trend = downsample(
     preds.map((p) => ({
       t: p.prediksiDibuat,
-      elapsedHours: round((new Date(p.prediksiDibuat) - new Date(session.masuk)) / 3600000),
+      elapsedHours: round((new Date(p.prediksiDibuat) - masukMs) / 3600000),
       shelfLife: p.shelfLifeJam,
     }))
   );
 
   return {
     ...base,
-    session: sessionView(session, settings.zones),
+    experiment: experimentView(experiment),
+    experimentStartedAt: experiment?.startedAt || null,
+    session: sessionView(session, settings.zones, Date.now(), experiment?.startedAt),
     status,
     remainingSeconds: sisa,
     shelfLifeHours: session.shelfLifeAwal,
@@ -280,6 +295,7 @@ async function getCondition({ chamberId, period }) {
     history,
     stats,
     dataQuality: quality,
+    rsl,
   };
 }
 

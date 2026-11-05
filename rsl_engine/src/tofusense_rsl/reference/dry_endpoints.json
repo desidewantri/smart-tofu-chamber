@@ -1,0 +1,55 @@
+{
+  "schema": "tofusense.rsl.dry_endpoints/1",
+  "time_origin": "FIRST_SENSOR_TIMESTAMP",
+  "storage_condition": "DRY",
+  "note": "interval-censored operational spoilage endpoint (L, U]: the event occurred after L and at or before U",
+  "sessions": [
+    {
+      "session_id": "S3",
+      "lower_h": 26.193751111111112,
+      "upper_h": 32.233195555555554,
+      "width_h": 6.039444444444442,
+      "storage_condition": "DRY",
+      "first_sensor_timestamp": "2026-10-25 17:16:38.496",
+      "endpoint_source": "S3 reconstructed physical observations; authoritative Phase 1 specification",
+      "last_non_spoiled_event_id": "S3-E005",
+      "first_spoiled_event_id": "S3-E006"
+    },
+    {
+      "session_id": "S4",
+      "lower_h": 31.1388,
+      "upper_h": 42.888799999999996,
+      "width_h": 11.749999999999996,
+      "storage_condition": "DRY",
+      "first_sensor_timestamp": "2026-10-28 13:06:40.320",
+      "endpoint_source": "S4 formal three-panelist assessment and physical inspection; authoritative Phase 1 specification",
+      "last_non_spoiled_event_id": "S4-E006",
+      "first_spoiled_event_id": "S4-E008"
+    },
+    {
+      "session_id": "S5",
+      "lower_h": 23.068924444444445,
+      "upper_h": 24.633924444444443,
+      "width_h": 1.5649999999999977,
+      "storage_condition": "DRY",
+      "first_sensor_timestamp": "2026-10-31 18:20:07.872",
+      "endpoint_source": "S5 reconstructed physical observations; authoritative Phase 1 specification",
+      "last_non_spoiled_event_id": "S5-E002",
+      "first_spoiled_event_id": "S5-E003"
+    }
+  ],
+  "excluded": [
+    {
+      "session_id": "S1",
+      "reason": "water-storage session"
+    },
+    {
+      "session_id": "S2",
+      "reason": "water-storage session"
+    },
+    {
+      "session_id": "S4-SENSITIVITY",
+      "reason": "sensitivity interval"
+    }
+  ]
+}

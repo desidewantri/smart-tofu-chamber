@@ -1,0 +1,31 @@
+{
+  "schema": "tofusense.rsl.provenance/1",
+  "generated_at_utc": "2026-11-04T10:07:33Z",
+  "generator": "offline research build (frozen snapshot; not shipped as a runtime tool)",
+  "canonical_source": "rsl_engine/src/v2_3 (vendored byte-identical snapshot of the frozen research tree)",
+  "research_status": "POST_HOC_EXPLORATORY_DESCRIPTIVE",
+  "n_informative_dry_endpoints": 3,
+  "time_origin": "FIRST_SENSOR_TIMESTAMP",
+  "source_artifacts": {
+    "interval_inventory.csv": "a11a37fa9c1a2892dab66cf3bcaaadf09c8b953469a3540254bee5a33c35971d",
+    "turnbull_summary.json": "cd58e1800f9d9de5e241d0c107ebd92647a75bafc9b30ab7696c68a4dbc45150",
+    "turnbull_masses.csv": "35266a11fb443a471790f546ffa90e51a6ef8e196fc61205ba00b6cfd1f4fa1b",
+    "annotated_workbook": "71d6b58651b3b5b7b1ea3ead0b6569448e781643815c8e49e4d88459b159af76"
+  },
+  "source_dataset": {
+    "annotated_workbook": "reports/endpoint_integration/dataset_tahu_endpoint_annotated.xlsx",
+    "sha256": "71d6b58651b3b5b7b1ea3ead0b6569448e781643815c8e49e4d88459b159af76"
+  },
+  "known_limitations": [
+    "three informative dry endpoints only",
+    "batch independence unverified",
+    "S4/S5 chamber entry and pre-monitoring tofu age unknown",
+    "organoleptic endpoint, not microbiological safety",
+    "TVOC contribution not established",
+    "NPMLE mass inside a support interval is not identified",
+    "M1 is an empirical envelope, not a prediction interval",
+    "Weibull parameters are a comparator and are unstable with three intervals"
+  ],
+  "v2_2_verdict": "NOT_SUPPORTED",
+  "tvoc_contribution": "NOT_ESTABLISHED"
+}

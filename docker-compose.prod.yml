@@ -23,6 +23,15 @@ services:
       - ./deploy/mosquitto-passwd:/mosquitto/config/passwd:ro
       - mosquitto-data:/mosquitto/data
 
+  rsl:
+    build:
+      context: .
+      dockerfile: rsl_service/Dockerfile
+    restart: unless-stopped
+    # Internal only: no host port, no Caddy route.
+    expose:
+      - "8001"
+
   backend:
     build: ./backend
     restart: unless-stopped
@@ -32,9 +41,11 @@ services:
       MONGODB_URI: mongodb://mongo:27017/smart_tofu_chamber
       MQTT_URL: mqtt://mosquitto:1883
       CORS_ORIGIN: https://${DOMAIN}
+      RSL_SERVICE_URL: http://rsl:8001
     depends_on:
       - mongo
       - mosquitto
+      - rsl
 
   frontend:
     build:
@@ -43,6 +54,12 @@ services:
         NEXT_PUBLIC_API_URL: ""
         NEXT_PUBLIC_USE_MOCK: "false"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
     depends_on:
       - backend
 

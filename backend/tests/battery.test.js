@@ -14,6 +14,12 @@ test('parseBattery menerima angka/teks dan membatasi 0-100', () => {
   assert.equal(parseBattery(3.94), 69); // vbat dalam volt
   assert.equal(parseBattery(4.2), 100);
   assert.equal(parseBattery(3.2), 0);
+  assert.equal(parseBattery(18.79), 19); // target Sheet vbat is percent
+  assert.equal(parseBattery(7.26), 7);
+  assert.equal(parseBattery(5), 100); // boundary: 5 V is still voltage
+  assert.equal(parseBattery(5.01), 5); // above boundary: percent
+  assert.equal(parseBattery(0), 0);
+  assert.equal(parseBattery(100), 100);
   assert.equal(parseBattery(''), null);
   assert.equal(parseBattery('x'), null);
 });
@@ -29,6 +35,8 @@ test('batteryLevel: baik > 50, sedang 20-50, lemah < 20', () => {
 test('validatePayload membaca battery (opsional)', () => {
   assert.equal(validatePayload({ chamber_id: 1, tvoc: 300, suhu: 25, rh: 70, battery: 81 }).battery, 81);
   assert.equal(validatePayload({ chamber_id: 1, tvoc: 300, suhu: 25, rh: 70 }).battery, null);
+  assert.equal(validatePayload({ chamber_id: 1, tvoc: 300, suhu: 25, rh: 70, vbat: 18.79 }).battery, 19);
+  assert.equal(validatePayload({ chamber_id: 1, tvoc: 300, suhu: 25, rh: 70, vbat: 3.94 }).battery, 69);
 });
 
 test('Sheet: kolom battery dipakai untuk kedua chamber', () => {
