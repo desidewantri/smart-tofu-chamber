@@ -34,7 +34,22 @@ function sessionView(doc, zones = DEFAULT_ZONES, now = Date.now()) {
 function readingView(doc) {
   const r = plain(doc);
   if (!r) return null;
-  return { id: String(r._id), chamberId: r.chamberId, tvoc: r.tvoc, suhu: r.suhu, rh: r.rh, timestamp: r.timestamp };
+  return {
+    id: String(r._id),
+    chamberId: r.chamberId,
+    tvoc: r.tvoc,
+    suhu: r.suhu,
+    rh: r.rh,
+    // timestamp tetap waktu efektif (sample time bila ada) agar UI lama tidak berubah.
+    timestamp: r.timestamp,
+    sampleId: r.sampleId || null,
+    deviceId: r.deviceId || null,
+    sampledAt: r.sampledAt || null,
+    receivedAt: r.receivedAt || null,
+    timestampSource: r.timestampSource || null,
+    timestampQuality: r.timestampQuality || null,
+    sources: r.sources || (r.source ? [r.source] : []),
+  };
 }
 
 function sensorZones(reading, thresholds) {

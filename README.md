@@ -88,23 +88,25 @@ Tanpa `GOOGLE_CLIENT_ID`, tombol Google disembunyikan (di mode demo tetap muncul
 
 Bila ESP32 mencatat data ke Google Sheet, backend bisa membacanya otomatis (tanpa MQTT, sensor boleh di mana saja).
 
-1. Sheet: kolom `timestamp, temp1, humid1, tvoc1, temp2, humid2, tvoc2` (kolom 1 = Chamber 1, kolom 2 = Chamber 2; kolom lain diabaikan).
+1. Sheet: skema baru `received_at, sample_id, sampled_at, temp1, humid1, tvoc1, temp2, humid2, tvoc2, vbat`, atau skema lama `timestamp, temp1, humid1, tvoc1, temp2, humid2, tvoc2`. Kolom 1 = Chamber 1, kolom 2 = Chamber 2; kolom lain diabaikan.
 2. Bagikan Sheet: **Share > General access > Anyone with the link > Viewer** (atau File > Share > Publish to web > CSV).
-3. Isi `SHEET_URL=` di `backend/.env` dengan link Sheet tersebut (link biasa dari address bar boleh), lalu jalankan ulang backend.
+3. Isi `SHEET_URL=` di `backend/.env` dengan link tab yang benar. **Sertakan `gid`** (mis. `...#gid=123`): tanpa gid Google mengekspor tab pertama, yang bisa saja tab sesi historis. Backend mencetak peringatan bila `gid` tidak ada.
 4. Terminal backend menampilkan `[sheet] N data baru diimpor dari Google Sheet`. Sheet dicek ulang tiap `SHEET_POLL_SEC` detik (default 60).
 
 Baterai alat (opsional): tambahkan kolom `battery` (persen, mis. `72` atau `72%`) di Sheet, atau field `"battery": 72` pada pesan MQTT/HTTP. Nilainya tampil di bilah atas ("Baterai Alat"); di bawah 20% muncul notifikasi lonceng dan WhatsApp (sekali, lalu aktif lagi setelah baterai diisi di atas 30%).
 
-Catatan: tekan "Tahu Sudah Keluar" pada sesi contoh dulu agar data Sheet masuk ke sesi baru. Jangan pakai MQTT dan Sheet untuk chamber yang sama sekaligus (data akan dobel).
+Catatan: tekan "Tahu Sudah Keluar" pada sesi contoh dulu agar data Sheet masuk ke sesi baru. MQTT dan Sheet boleh aktif bersamaan: setiap kejadian punya `eventId` (`<sample_id>-ch<n>`) dan hanya disimpan sekali (lihat docs/data_contract.md).
 Impor ulang dari awal: `docker exec stc-mongo mongosh smart_tofu_chamber --quiet --eval "db.importcursors.deleteMany({})"`.
 
 ## MQTT di server (ESP32 kirim ke MQTT dan Google Sheet)
 
-ESP32 (`firmware/toscha_esp32/toscha_esp32.ino`) mengirim setiap 5 menit ke **MQTT dan Google Sheet**.
-Backend memakai data MQTT; baris Sheet hanya diimpor bila data MQTT untuk chamber dan waktu itu tidak ada
-(`SHEET_MODE=fallback` di `backend/.env`). Sheet tetap lengkap untuk tim.
+ESP32 (`firmware/toscha_esp32_bench/toscha_esp32_bench.ino`) mengirim setiap 5 menit ke **MQTT dan Google Sheet**.
+MQTT adalah jalur utama; Sheet adalah arsip dan jalur cadangan. Keduanya memakai `sample_id` yang sama,
+sehingga backend menyimpan satu dokumen per kejadian (`eventId = <sample_id>-ch<n>`) walaupun data datang
+dari dua jalur. `SHEET_MODE=fallback` tetap disarankan untuk data lama yang belum punya `sample_id`.
 
 - Broker: `infra/mosquitto/mosquitto.prod.conf` (wajib login, menyimpan pesan saat backend restart), port 1883.
+- Detail broker yang sudah ada (dev vs server, variabel, cara verifikasi): **[docs/mqtt.md](docs/mqtt.md)**.
 - File password: `deploy/mosquitto-passwd` (dibuat di server, tidak masuk git). User: `esp32` dan `backend`.
 - Kolom `source` di `sensorreadings` mencatat jalur data: `mqtt`, `sheet` (cadangan), atau `http`.
 - Cek: `docker compose -f docker-compose.prod.yml logs -f backend` → `[mqtt] terhubung`, `[mqtt] smartchamber/sensor/1 -> CH-...`.
@@ -160,18 +162,20 @@ Catatan: Fonnte adalah gateway tidak resmi. Paket gratisnya cukup untuk demo (se
 3. Cek `GET http://localhost:5000/api/health`. Dashboard tidak menampilkan nama model; modelnya hanya tercatat di data prediksi.
 
 ## Menyambungkan ESP32
-1. Edit `firmware/include/config.h`: WiFi, `MQTT_HOST` (IP komputer yang menjalankan Mosquitto, bukan `localhost`), `CHAMBER_ID`.
-2. Buka `firmware/` dengan PlatformIO (VS Code) lalu Upload.
-3. Pastikan firewall komputer mengizinkan port 1883.
+1. Copy `firmware/toscha_esp32_bench/config_secrets.example.h` menjadi `config_secrets.h`, isi WiFi,
+   `SCRIPT_URL` + `API_KEY` (Apps Script), dan kredensial MQTT. File ini gitignored.
+2. Buka `firmware/toscha_esp32_bench/toscha_esp32_bench.ino` di Arduino IDE (atau
+   `python3 -m platformio run -d firmware/toscha_esp32_bench` untuk compile check) lalu Upload.
+3. Pastikan firewall mengizinkan port 1883. Untuk TLS gunakan port 8883 + `MQTT_USE_TLS 1` + `MQTT_CA_CERT`.
 
 ## Tes
 ```bash
-cd backend && npm test        # 19 tes unit (zona status, validasi payload, ML client, analisis)
+cd backend && npm test        # 98 tes unit (identitas, dedup, Sheet, MQTT, firmware contract, dll.)
 ```
 
 ## Yang sudah dan belum diverifikasi
 Diuji di lingkungan pengembangan saya:
-- Backend: 19 tes unit lulus; rute tanpa database dicek (health, 401, validasi 400).
+- Backend: 98 tes unit lulus; rute tanpa database dicek (health, 401, validasi 400).
 - Frontend: `next build` lulus; semua halaman dibuka di browser headless (mode demo) tanpa error konsol; alur login, tutup sesi, tab Analysis, tampilan mobile dicek.
 
 **Belum teruji** (tidak bisa dijalankan di lingkungan saya, jadi mungkin perlu penyesuaian kecil saat pertama dijalankan):

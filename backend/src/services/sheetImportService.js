@@ -1,12 +1,25 @@
 /**
  * Impor data sensor dari Google Sheet (CSV) ke aplikasi.
  *
- * Format Sheet yang didukung (baris 1 = judul kolom, huruf besar/kecil bebas):
- *   timestamp | temp1 | humid1 | tvoc1 | temp2 | humid2 | tvoc2 | ...kolom lain diabaikan
+ * Skema yang didukung (baris 1 = judul kolom, huruf besar/kecil bebas):
+ *
+ *   Baru (tab "testing"):
+ *     received_at | sample_id | sampled_at | temp1 | humid1 | tvoc1
+ *                 | temp2 | humid2 | tvoc2 | vbat
+ *
+ *   Lama:
+ *     timestamp | temp1 | humid1 | tvoc1 | temp2 | humid2 | tvoc2 | vbat
+ *
+ * Pada skema lama, `timestamp` dibuat Apps Script dengan `new Date()` saat
+ * request diterima. Nilainya adalah waktu terima, bukan waktu akuisisi sensor,
+ * sehingga tidak pernah dipetakan ke `sampled_at`.
+ *
  * Kolom berakhiran 1 -> Chamber 1, berakhiran 2 -> Chamber 2.
  *
- * Setiap SHEET_POLL_SEC detik, backend mengunduh CSV dan hanya memasukkan baris yang lebih baru
- * dari baris terakhir yang sudah diimpor (disimpan di koleksi importcursors).
+ * Identitas event diturunkan dari `sample_id` + chamber, sama persis dengan
+ * jalur MQTT. Karena MongoDB memiliki unique index pada eventId, baris Sheet
+ * yang sudah masuk lewat MQTT otomatis ditolak sebagai duplikat. Cursor baris
+ * (rowIndex) hanya optimisasi; kebenaran tetap dijaga oleh unique index.
  */
 const env = require('../config/env');
 const ImportCursor = require('../models/ImportCursor');
@@ -14,6 +27,7 @@ const Chamber = require('../models/Chamber');
 const SensorReading = require('../models/SensorReading');
 const { ingestReading } = require('./ingestService');
 const { parseBattery } = require('../utils/battery');
+const { deriveEventId, sanitiseSampleId } = require('../utils/identity');
 
 const CHAMBERS = [1, 2];
 let timer = null;
@@ -53,6 +67,14 @@ function toCsvUrl(url) {
   return `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv${gid ? `&gid=${gid[1]}` : ''}`;
 }
 
+/**
+ * Apakah URL menunjuk tab tertentu lewat `gid`? Tanpa gid, Google Sheets
+ * mengekspor tab pertama, yang bisa saja tab sesi historis.
+ */
+function hasExplicitGid(url) {
+  return /[#&?]gid=\d+/.test(String(url || ''));
+}
+
 /** Angka: "32.27", "32,27", "3.451" (ribuan) tetap dibaca wajar. */
 function toNumber(v) {
   let s = String(v ?? '').trim().replace(/\s/g, '');
@@ -89,19 +111,40 @@ function parseTimestamp(v, { offset = '+07:00', order = 'mdy' } = {}) {
   return Number.isNaN(t.getTime()) ? null : t;
 }
 
-/** Ubah isi CSV menjadi daftar pembacaan { chamberId, timestamp, tvoc, suhu, rh }. */
+/**
+ * Ubah isi CSV menjadi daftar pembacaan.
+ *
+ * Setiap baris menghasilkan satu pembacaan per chamber yang kolomnya lengkap.
+ *
+ * Semantik waktu:
+ *   - `sampled_at`  -> waktu akuisisi sensor (satu-satunya sumber `sampledAt`)
+ *   - `received_at` -> waktu terima yang eksplisit
+ *   - `timestamp`   -> skema lama: waktu terima Apps Script (bukan akuisisi)
+ *   - `timestamp` efektif = `sampled_at` bila ada, jika tidak `received_at`.
+ *
+ * `sortTime` dipakai untuk cursor lama; `rowIndex` adalah posisi baris di CSV.
+ */
 function rowsToReadings(rows, opts = {}) {
   if (!rows.length) return [];
   const head = rows[0].map((h) => String(h).trim().toLowerCase());
   const col = (names) => head.findIndex((h) => names.includes(h));
+
+  const sampledIdx = col(['sampled_at', 'sampledat', 'waktu_sampel']);
   const tsIdx = col(['timestamp', 'waktu', 'time', 'tanggal']);
-  if (tsIdx < 0) throw new Error('Kolom "timestamp" tidak ditemukan di baris pertama Sheet');
+  const receivedIdx = col(['received_at', 'receivedat', 'diterima']);
+  const sampleIdx = col(['sample_id', 'sampleid', 'id_sampel']);
+
+  if (sampledIdx < 0 && tsIdx < 0 && receivedIdx < 0) {
+    throw new Error(
+      'Kolom waktu tidak ditemukan di baris pertama Sheet: sertakan "sampled_at", "received_at", atau "timestamp"'
+    );
+  }
+
   const map = CHAMBERS.map((n) => ({
     chamberId: n,
     suhu: col([`temp${n}`, `suhu${n}`, `temperature${n}`]),
     rh: col([`humid${n}`, `rh${n}`, `humidity${n}`, `kelembapan${n}`]),
     tvoc: col([`tvoc${n}`]),
-    // Baterai: kolom per chamber (battery1) atau satu kolom untuk alat (battery / baterai).
     battery: (() => {
       const own = col([`battery${n}`, `baterai${n}`, `bat${n}`, `vbat${n}`]);
       return own >= 0 ? own : col(['vbat', 'battery', 'baterai', 'bat', 'batt', 'battery (%)', 'baterai (%)', 'v_bat']);
@@ -110,37 +153,75 @@ function rowsToReadings(rows, opts = {}) {
   if (!map.length) throw new Error('Kolom temp1/humid1/tvoc1 (atau temp2/humid2/tvoc2) tidak ditemukan');
 
   const out = [];
-  for (const r of rows.slice(1)) {
-    const timestamp = parseTimestamp(r[tsIdx], opts);
-    if (!timestamp) continue; // baris kosong / catatan
+  rows.slice(1).forEach((r, rowIndex) => {
+    const sampledAt = sampledIdx >= 0 ? parseTimestamp(r[sampledIdx], opts) : null;
+    const explicitReceivedAt = receivedIdx >= 0 ? parseTimestamp(r[receivedIdx], opts) : null;
+    // Skema lama: Apps Script menulis `timestamp` dengan new Date() saat request
+    // diterima. Itu waktu terima, bukan waktu sampel.
+    const legacyReceivedAt = tsIdx >= 0 ? parseTimestamp(r[tsIdx], opts) : null;
+    const receivedAt = explicitReceivedAt || legacyReceivedAt;
+    const timestamp = sampledAt || receivedAt;
+    if (!timestamp) return; // baris kosong / catatan
+
+    let sampleId = null;
+    let sampleIdInvalid = null;
+    if (sampleIdx >= 0) {
+      const raw = String(r[sampleIdx] ?? '').trim();
+      if (raw) {
+        try {
+          sampleId = sanitiseSampleId(raw);
+        } catch {
+          sampleIdInvalid = raw;
+        }
+      }
+    }
+
     for (const c of map) {
       const tvoc = toNumber(r[c.tvoc]);
       const suhu = toNumber(r[c.suhu]);
       const rh = toNumber(r[c.rh]);
       if ([tvoc, suhu, rh].some((x) => !Number.isFinite(x))) continue;
       const battery = c.battery >= 0 ? parseBattery(r[c.battery]) : null;
-      out.push({ chamberId: c.chamberId, timestamp, tvoc, suhu, rh, battery });
+      out.push({
+        chamberId: c.chamberId,
+        rowIndex,
+        sampleId,
+        sampleIdInvalid,
+        sampledAt: sampledAt || null,
+        receivedAt: receivedAt || null,
+        timestamp,
+        timestampQuality: sampledAt ? 'OK' : 'MISSING',
+        eventId: sampleId ? deriveEventId(sampleId, c.chamberId) : null,
+        sortTime: receivedAt || timestamp,
+        tvoc,
+        suhu,
+        rh,
+        battery,
+      });
     }
-  }
-  return out.sort((a, b) => a.timestamp - b.timestamp);
+  });
+  return out.sort((a, b) => a.rowIndex - b.rowIndex || a.chamberId - b.chamberId);
 }
 
 /**
- * Pilih baris yang belum diimpor untuk satu chamber.
- * cutoff (mode fallback): baris yang lebih baru dari cutoff ditunda dulu, memberi waktu data MQTT
- * yang sama datang lebih dulu. Cursor tidak melewati baris yang ditunda.
+ * Pilih baris yang belum diproses untuk satu chamber.
+ * Utamakan rowIndex (monoton, tahan terhadap sampled_at yang datang tidak urut).
+ * Cursor lama berbasis timestamp tetap didukung.
  */
-function selectFresh(readings, n, { last = null, since = null, cutoff = null } = {}) {
-  return readings.filter(
-    (r) =>
-      r.chamberId === n &&
-      (!last || r.timestamp > last) &&
-      (!since || r.timestamp >= since) &&
-      (!cutoff || r.timestamp <= cutoff)
-  );
+function selectFresh(readings, n, { last = null, since = null, cutoff = null, lastRowIndex = null } = {}) {
+  if (Number.isInteger(lastRowIndex)) {
+    return readings.filter((r) => r.chamberId === n && r.rowIndex > lastRowIndex);
+  }
+  return readings.filter((r) => {
+    const when = r.sortTime || r.timestamp;
+    return r.chamberId === n
+      && (!last || when > last)
+      && (!since || r.timestamp >= since)
+      && (!cutoff || r.timestamp <= cutoff);
+  });
 }
 
-/** Mode fallback: apakah sudah ada data chamber ini di sekitar waktu t (dari MQTT/HTTP)? */
+/** Mode fallback untuk baris lama tanpa sample_id: apakah sudah ada data di sekitar waktu t? */
 async function alreadyStored(chamberId, t, matchSec) {
   const ms = matchSec * 1000;
   const hit = await SensorReading.exists({
@@ -161,39 +242,109 @@ async function syncOnce() {
         'atau dipublikasikan sebagai CSV (File > Share > Publish to web).'
     );
   }
-  const readings = rowsToReadings(parseCsv(text), { offset: env.sheet.tzOffset, order: env.sheet.dateOrder });
+  const csvRows = parseCsv(text);
+  const readings = rowsToReadings(csvRows, { offset: env.sheet.tzOffset, order: env.sheet.dateOrder });
+  const maxRowIndex = Math.max(-1, csvRows.length - 2); // index baris data terakhir
 
   const since = env.sheet.importSince ? new Date(env.sheet.importSince) : null;
   const fallback = env.sheet.mode === 'fallback';
   const cutoff = fallback ? new Date(Date.now() - env.sheet.graceSec * 1000) : null;
   let imported = 0;
-  let skipped = 0;
+  let duplicates = 0;
+  let rejected = 0;
+  let deferred = 0;
+
+  const byRow = new Map();
+  for (const r of readings) {
+    if (!byRow.has(r.rowIndex)) byRow.set(r.rowIndex, {});
+    byRow.get(r.rowIndex)[r.chamberId] = r;
+  }
+
   for (const n of CHAMBERS) {
     const key = `sheet:${n}`;
-    const cursor = await ImportCursor.findOne({ key });
-    let last = cursor?.lastTimestamp || null;
-    const fresh = selectFresh(readings, n, { last, since, cutoff });
-    for (const r of fresh) {
-      if (fallback && (await alreadyStored(n, r.timestamp, env.sheet.matchSec))) {
-        skipped += 1; // sudah masuk lewat MQTT
-        last = r.timestamp;
+    const doc = await ImportCursor.findOne({ key });
+    const cursor = {
+      last: doc?.lastTimestamp || null,
+      row: Number.isInteger(doc?.lastRowIndex) ? doc.lastRowIndex : null,
+    };
+    const usesRowCursor = cursor.row !== null;
+    // Sheet dipendekkan / diganti: mulai dari awal, dedup DB yang menjaga.
+    if (usesRowCursor && cursor.row > maxRowIndex) cursor.row = null;
+    let changed = false;
+
+    for (let rowIndex = 0; rowIndex <= maxRowIndex; rowIndex += 1) {
+      if (cursor.row !== null && rowIndex <= cursor.row) continue;
+      const r = byRow.get(rowIndex)?.[n];
+      if (!r) {
+        // Baris tanpa data untuk chamber ini: dengan cursor baris, lewati permanen.
+        if (usesRowCursor) { cursor.row = rowIndex; changed = true; }
         continue;
       }
-      try {
-        await ingestReading(
-          { chamber_id: n, tvoc: r.tvoc, suhu: r.suhu, rh: r.rh, battery: r.battery, timestamp: r.timestamp.toISOString() },
-          { seenAt: r.timestamp, source: 'sheet' }
-        );
-        imported += 1;
-      } catch (err) {
-        console.error(`[sheet] baris ${r.timestamp.toISOString()} chamber ${n} dilewati: ${err.message}`);
+      // Cursor lama berbasis waktu (sekali, sebelum cursor baris terbentuk).
+      if (!usesRowCursor && cursor.last && r.sortTime <= cursor.last) {
+        cursor.last = r.sortTime;
+        changed = true;
+        continue;
       }
-      last = r.timestamp;
+      if (since && r.timestamp < since) {
+        cursor.row = rowIndex; changed = true; continue;
+      }
+      // Mode cadangan: tunda baris yang masih baru agar MQTT datang lebih dulu.
+      if (cutoff && r.timestamp > cutoff) { deferred += 1; break; }
+      if (r.sampleIdInvalid) {
+        rejected += 1;
+        console.error(`[sheet] sample_id tidak valid "${r.sampleIdInvalid}" (baris ${rowIndex + 2})`);
+        cursor.row = rowIndex; changed = true; continue;
+      }
+      // Baris lama tanpa identitas: pertahankan pemeriksaan kedekatan waktu.
+      if (fallback && !r.eventId && (await alreadyStored(n, r.timestamp, env.sheet.matchSec))) {
+        duplicates += 1;
+        cursor.last = r.sortTime; cursor.row = rowIndex; changed = true; continue;
+      }
+      try {
+        const result = await ingestReading(
+          {
+            chamber_id: n,
+            sample_id: r.sampleId || undefined,
+            // Only a real sample time is sent as sampled_at. A row that only has
+            // received_at stays flagged MISSING in the backend.
+            sampled_at: r.sampledAt ? r.sampledAt.toISOString() : undefined,
+            tvoc: r.tvoc,
+            suhu: r.suhu,
+            rh: r.rh,
+            battery: r.battery,
+          },
+          // Jangan pernah memakai waktu sampel sebagai waktu terima. Bila Sheet
+          // tidak punya received_at, waktu impor adalah proksi terima yang jujur.
+          { receivedAt: r.receivedAt || new Date(), source: 'sheet' }
+        );
+        if (result.duplicate) duplicates += 1;
+        else imported += 1;
+        cursor.last = r.sortTime;
+        cursor.row = rowIndex;
+        changed = true;
+      } catch (err) {
+        rejected += 1;
+        console.error(`[sheet] baris ${r.timestamp.toISOString()} chamber ${n} dilewati: ${err.message}`);
+        if (err.status === 400) {
+          // Baris tidak valid secara permanen: lewati agar tidak memblokir baris berikutnya.
+          cursor.row = rowIndex;
+          changed = true;
+          continue;
+        }
+        // Galat sementara (DB/jaringan): jangan majukan cursor, coba lagi poll berikutnya.
+        break;
+      }
     }
-    if (fresh.length) {
-      await ImportCursor.updateOne({ key }, { $set: { lastTimestamp: last } }, { upsert: true });
+    if (changed) {
+      await ImportCursor.updateOne(
+        { key },
+        { $set: { lastTimestamp: cursor.last, lastRowIndex: cursor.row } },
+        { upsert: true }
+      );
     }
   }
+
   // Baterai: pakai baris terbaru yang berisi nilai baterai, walau baris itu sudah pernah diimpor
   // (mis. kolom vbat baru ditambahkan) atau datanya ditolak (mis. TVOC 99999).
   for (const n of CHAMBERS) {
@@ -205,7 +356,7 @@ async function syncOnce() {
       { $set: { battery: latest.battery, batteryAt: latest.timestamp } }
     );
   }
-  return { imported, skipped, rows: readings.length, mode: env.sheet.mode };
+  return { imported, duplicates, rejected, deferred, rows: readings.length, mode: env.sheet.mode };
 }
 
 async function tick() {
@@ -214,9 +365,8 @@ async function tick() {
   try {
     const r = await syncOnce();
     lastStatus = { enabled: true, ok: true, at: new Date(), ...r };
-    if (r.mode === 'fallback') {
-      if (r.imported) console.log(`[sheet] CADANGAN: ${r.imported} data diimpor dari Sheet (tidak ada data MQTT-nya)`);
-    } else if (r.imported) console.log(`[sheet] ${r.imported} data baru diimpor dari Google Sheet`);
+    if (r.imported) console.log(`[sheet] ${r.imported} data baru diimpor dari Google Sheet`);
+    if (r.duplicates) console.log(`[sheet] ${r.duplicates} baris sudah ada (MQTT/import lain), dilewati`);
   } catch (err) {
     lastStatus = { enabled: true, ok: false, at: new Date(), error: err.message };
     console.error(`[sheet] ${err.message}`);
@@ -227,9 +377,15 @@ async function tick() {
 
 function start() {
   if (!env.sheet.url) return;
+  if (!hasExplicitGid(env.sheet.url)) {
+    console.warn(
+      '[sheet] SHEET_URL tidak menyertakan gid; Google mengekspor tab pertama. ' +
+        'Tambahkan gid=<tab testing> agar importer tidak membaca tab sesi historis.'
+    );
+  }
   console.log(
     env.sheet.mode === 'fallback'
-      ? `[sheet] mode CADANGAN: tiap ${env.sheet.pollSec} detik, impor baris Sheet yang tidak punya data MQTT (tunggu ${env.sheet.graceSec} detik)`
+      ? `[sheet] mode CADANGAN: tiap ${env.sheet.pollSec} detik, baris Sheet hanya diimpor bila belum ada`
       : `[sheet] membaca Google Sheet tiap ${env.sheet.pollSec} detik`
   );
   tick();
@@ -243,4 +399,7 @@ function stop() {
 
 const status = () => lastStatus;
 
-module.exports = { start, stop, status, syncOnce, parseCsv, toCsvUrl, toNumber, parseTimestamp, rowsToReadings, selectFresh };
+module.exports = {
+  start, stop, status, syncOnce, parseCsv, toCsvUrl, toNumber, parseTimestamp,
+  rowsToReadings, selectFresh, hasExplicitGid,
+};

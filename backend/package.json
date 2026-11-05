@@ -9,7 +9,8 @@
     "dev": "nodemon src/server.js",
     "seed": "node scripts/seed.js",
     "simulate": "node scripts/simulator.js",
-    "test": "node --test"
+    "test": "node --test",
+    "mqtt:check": "node scripts/mqtt-check.js"
   },
   "engines": {
     "node": ">=18"
@@ -27,6 +28,7 @@
     "mqtt": "^5.9.1"
   },
   "devDependencies": {
+    "aedes": "^0.51.3",
     "nodemon": "^3.1.4"
   }
 }
