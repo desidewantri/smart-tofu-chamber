@@ -39,6 +39,9 @@ async function callLive(input) {
 }
 
 async function predict(input, mode = env.ml.mode) {
+  if (mode === 'off') {
+    return { disabled: true, shelfLifeJam: null, modelUsed: 'off', source: 'off' };
+  }
   if (mode === 'live') return { ...(await callLive(input)), source: 'live' };
   if (mode === 'auto') {
     try {

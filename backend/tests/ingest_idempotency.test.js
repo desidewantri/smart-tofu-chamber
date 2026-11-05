@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 
 const { ingestReading } = require('../src/services/ingestService');
 const { createMemoryStore } = require('./helpers/memoryStore');
+const env = require('../src/config/env');
+const predictionService = require('../src/services/predictionService');
 
 const RECEIVED = new Date('2026-11-05T00:05:00.000Z');
 
@@ -88,6 +90,27 @@ test('an ESP32 temperature/humidity payload is persisted', async () => {
   assert.equal(reading.suhu, 27.53);
   assert.equal(reading.rh, 78.92);
   assert.equal(reading.eventId, 'tofusense-FCF5C46F0E2C-1793817129-2-ch2');
+});
+
+test('ML_MODE=off stores readings but skips predictions and session ML fields', async () => {
+  const oldMode = env.ml.mode;
+  env.ml.mode = 'off';
+  try {
+    const store = createMemoryStore();
+    // Exercise the real prediction service so ML_MODE=off is covered end to end.
+    store.predictionService = predictionService;
+    const result = await ingest(store, mqttPayload());
+    assert.equal(result.prediction, null);
+    assert.equal(result.predictionDisabled, true);
+    assert.equal(store.state.readings.length, 1);
+    assert.equal(store.state.predictions.length, 0);
+    assert.equal(store.state.sessions[0].readingCount, 1);
+    assert.equal(store.state.sessions[0].shelfLifeAwal, null);
+    assert.equal(store.state.sessions[0].shelfLifeMulai, null);
+    assert.equal(store.state.sessions[0].modelUsed, null);
+  } finally {
+    env.ml.mode = oldMode;
+  }
 });
 
 test('the same MQTT event arriving twice is stored once', async () => {

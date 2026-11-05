@@ -4,7 +4,7 @@ Aplikasi monitoring dan prediksi shelf-life tahu secara real-time (Capstone C-25
 Sensor ESP32 (AGS10 + SHT31) → MQTT → Backend (Express + MongoDB) → Dashboard (Next.js).
 
 > Folder `ml-service/` (FastAPI, Random Forest + LSTM) dikerjakan anggota tim ML dan **tidak ada** di sini.
-> Sampai ml-service siap, backend memakai **model tiruan** (`ML_MODE=mock`) agar seluruh alur bisa dicoba.
+> Sampai ml-service siap, backend memakai **model tiruan** (`ML_MODE=mock`) agar seluruh alur bisa dicoba. `ML_MODE=off` mematikan prediksi ML tanpa menghentikan ingest sensor atau RSL.
 
 ```
 smart-tofu-chamber/
