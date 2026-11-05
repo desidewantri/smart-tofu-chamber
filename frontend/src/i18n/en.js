@@ -182,6 +182,7 @@ export const EN = {
   'Belum ada nomor tujuan. Tambahkan minimal satu nomor agar notifikasi terkirim.': 'No recipient numbers yet. Add at least one number so notifications can be sent.',
   'Aktif: pesan dikirim lewat Fonnte ke {n} nomor.': 'Active: messages are sent through Fonnte to {n} number(s).',
   'Tahu baru masuk': 'New tofu added',
+  'tidak ada data': 'no data',
   'Baterai alat lemah': 'Low device battery',
   'data sensor pertama diterima': 'first sensor data received',
   'Tahu menjadi Segera Konsumsi': 'Tofu becomes Consume Soon',

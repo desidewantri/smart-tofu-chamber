@@ -4,6 +4,7 @@ const SensorReading = require('../models/SensorReading');
 const Prediction = require('../models/Prediction');
 const SystemSetting = require('../models/SystemSetting');
 const asyncHandler = require('../utils/asyncHandler');
+const { latestBattery } = require('../services/batteryService');
 const { STATUS, classifyShelfLife, remainingSeconds } = require('../utils/status');
 const { sessionView, readingView, sensorZones, chamberView, downsample, isConnected } = require('../utils/presenters');
 const { batteryLevel, LOW_PERCENT } = require('../utils/battery');
@@ -12,16 +13,8 @@ const { batteryLevel, LOW_PERCENT } = require('../utils/battery');
  * Status baterai alat: diambil dari chamber yang paling baru melaporkan baterai
  * (satu alat melayani Chamber 1 dan 2, jadi nilainya sama).
  */
-async function batteryStatus(settings, now = Date.now()) {
-  const c = await Chamber.findOne({ battery: { $ne: null } }).sort({ batteryAt: -1 }).lean();
-  if (!c) return { percent: null, level: null, at: null, stale: false };
-  return {
-    percent: c.battery,
-    level: batteryLevel(c.battery),
-    at: c.batteryAt,
-    stale: !isConnected({ lastSeenAt: c.batteryAt }, settings, now),
-  };
-}
+/** Baterai alat dari data sensor terakhir (lihat services/batteryService.js). */
+const batteryStatus = (settings, now = Date.now()) => latestBattery(settings, now);
 exports.batteryStatus = batteryStatus;
 
 /** GET /api/battery */

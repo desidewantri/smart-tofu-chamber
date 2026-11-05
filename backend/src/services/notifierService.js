@@ -7,6 +7,7 @@ const { STATUS, classifyShelfLife, remainingSeconds } = require('../utils/status
 const { isConnected } = require('../utils/presenters');
 const { sendWhatsApp, isConfigured } = require('./whatsappService');
 const { LOW_PERCENT, RESET_PERCENT } = require('../utils/battery');
+const { latestBattery } = require('./batteryService');
 
 /**
  * Pemeriksa berkala: kirim WhatsApp saat
@@ -138,10 +139,14 @@ async function checkOnce(now = Date.now()) {
   return { sent };
 }
 
-/** Peringatan baterai lemah: sekali saja, lalu boleh lagi setelah baterai diisi melewati RESET_PERCENT. */
+/**
+ * Peringatan baterai lemah: sekali saja, lalu boleh lagi setelah baterai diisi melewati RESET_PERCENT.
+ * Memakai baterai dari data sensor terakhir; kosong ("–") atau data lama tidak memicu pesan.
+ */
 async function checkBattery(settings, recipients, now = Date.now()) {
-  const c = await Chamber.findOne({ battery: { $ne: null } }).sort({ batteryAt: -1 }).lean();
-  if (!c || !isConnected({ lastSeenAt: c.batteryAt }, settings, now)) return 0;
+  const b = await latestBattery(settings, now);
+  if (b.percent === null || b.stale) return 0;
+  const c = { battery: b.percent };
   if (c.battery >= RESET_PERCENT && settings.batteryLowNotifiedAt) {
     await SystemSetting.updateOne({ key: 'default' }, { $set: { batteryLowNotifiedAt: null } });
     return 0;
