@@ -24,30 +24,51 @@ function BatteryIcon({ percent, color }) {
   );
 }
 
-/** Baterai alat sensor di bilah atas. Tidak tampil bila alat belum pernah mengirim data baterai. */
+/** Baterai alat sensor di bilah atas dari telemetry aktual perangkat. */
 export default function BatteryIndicator() {
   const { t } = useI18n();
   const { data } = usePolling(() => api.getBattery(), 60000, []);
-  if (!data || data.percent === null || data.percent === undefined) return null;
+  if (!data) return null;
 
-  // Warna selalu mengikuti persen; data lama hanya diberi tahu lewat keterangan (hover).
+  // Jujur saat kosong: tampilkan status, bukan angka statis atau hilang diam-diam.
+  if (data.percent === null || data.percent === undefined) {
+    return (
+      <div
+        className="mr-1 flex items-center rounded-2xl bg-white px-3 py-1.5 shadow-sm sm:px-3.5"
+        role="status"
+        aria-label={t('Data baterai tidak tersedia')}
+      >
+        <div className="flex flex-col leading-tight">
+          <span className="hidden text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:block">{t('Baterai alat')}</span>
+          <span className="text-[12px] font-semibold text-slate-400">{t('Data baterai tidak tersedia')}</span>
+        </div>
+      </div>
+    );
+  }
+
   const tone = TONE[data.level] || TONE.baik;
+  const chamber = data.chamberId ? `CH-${data.chamberId} · ` : '';
   const hint = data.stale
-    ? `${t('Alat tidak mengirim data. Nilai terakhir')} ${formatRelative(data.at).toLowerCase()}`
-    : `${t('Diperbarui')} ${formatRelative(data.at).toLowerCase()}`;
+    ? `${chamber}${t('Alat tidak mengirim data. Nilai terakhir')} ${formatRelative(data.at).toLowerCase()}`
+    : `${chamber}${t('Diperbarui')} ${formatRelative(data.at).toLowerCase()}`;
 
   return (
     <div
       className="mr-1 flex items-center rounded-2xl bg-white px-3 py-1.5 shadow-sm sm:px-3.5"
       title={hint}
       role="status"
-      aria-label={`${t('Baterai alat')} ${data.percent}%`}
+      aria-label={`${t('Baterai alat')} ${data.percent}%${data.chamberId ? ` CH-${data.chamberId}` : ''}${data.stale ? ` (${t('data lama')})` : ''}`}
     >
       <div className="flex flex-col leading-tight">
         <span className="hidden text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:block">{t('Baterai alat')}</span>
         <span className={cn('flex items-center gap-1.5 text-[15px] font-extrabold tabular-nums', tone.value)}>
           <BatteryIcon percent={data.percent} color={tone.fill} />
           {data.percent}%
+          {data.stale && (
+            <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+              {t('data lama')}
+            </span>
+          )}
         </span>
       </div>
     </div>
