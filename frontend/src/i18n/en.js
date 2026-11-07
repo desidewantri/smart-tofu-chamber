@@ -613,6 +613,7 @@ export const EN = {
   'Referensi': 'Reference',
   'Belum diverifikasi': 'Not yet verified',
   'Catat kondisi sampel': 'Record sample condition',
+  'Buka untuk melihat detail.': 'Open to view details.',
   'Referensi historis': 'Historical reference',
   'Sampel belum diverifikasi; bukan prediksi individual.': 'Sample not yet verified; not an individual prediction.',
   'Sampel belum diverifikasi operator. Ini referensi historis bersama, bukan prediksi individual dan bukan kondisi sampel yang dikonfirmasi.': 'Sample not yet verified by the operator. This is a shared historical reference, not an individual prediction or a confirmed sample condition.',

@@ -2,7 +2,7 @@
 
 import { AlertTriangle, BookOpenCheck, ShieldQuestion } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 const REASON_TEXT = {
   SAMPLE_STATUS_UNKNOWN: 'Belum diverifikasi',
@@ -41,7 +41,7 @@ export default function RslHeadline({ rsl, className = '' }) {
   if (!rsl) return null;
 
   if (rsl.status === 'AVAILABLE' && rsl.primary) {
-    const { display, lowerHours, upperHours, nReferenceSessions } = rsl.primary;
+    const { display } = rsl.primary;
     return (
       <div className={cn('rounded-xl bg-white/85 px-3.5 py-2.5 ring-1 ring-inset ring-slate-200/80', className)}>
         <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -51,23 +51,6 @@ export default function RslHeadline({ rsl, className = '' }) {
           <span className="text-[32px] leading-none">{display.lowerHours}–{display.upperHours}</span>
           <span className="text-sm font-semibold text-slate-500">{t('jam lagi')}</span>
         </p>
-        <p className="mt-1 text-[11px] leading-snug text-slate-500">
-          {t('Batas penuh')}: {fmt(lowerHours)}–{fmt(upperHours)} {t('jam')} · {t('berbasis {n} sesi referensi kering', { n: nReferenceSessions })}
-        </p>
-        <p className="mt-1 text-[11px] leading-snug text-slate-500">
-          {t('Ini rentang historis, bukan interval kepercayaan dan bukan jaminan keamanan individu.')}
-        </p>
-        {(rsl.metadata?.referenceVersion || rsl.generatedAt || rsl.snapshotAt) && (
-          <p className="mt-1 text-[11px] text-slate-500">
-            {[
-              rsl.metadata?.referenceVersion ? `${t('Referensi')} ${rsl.metadata.referenceVersion}` : null,
-              rsl.metadata?.referenceStorageCondition || null,
-              rsl.generatedAt || rsl.snapshotAt
-                ? `${rsl.isSnapshot ? t('snapshot') : t('dihitung')} ${formatDateTime(rsl.generatedAt || rsl.snapshotAt)}`
-                : null,
-            ].filter(Boolean).join(' · ')}
-          </p>
-        )}
         <p className="mt-1 text-[11px] font-medium text-slate-600">
           {t('Waktu berjalan')}: {fmt(rsl.elapsedHours, 2)} {t('jam sejak eksperimen dimulai')}
         </p>
@@ -76,7 +59,7 @@ export default function RslHeadline({ rsl, className = '' }) {
   }
 
   if (rsl.status === 'REFERENCE_ONLY' && rsl.primary) {
-    const { display, lowerHours, upperHours, nReferenceSessions } = rsl.primary;
+    const { display } = rsl.primary;
     return (
       <div className={cn('rounded-xl bg-white/85 px-3.5 py-2.5 ring-1 ring-inset ring-slate-200/80', className)}>
         <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -86,23 +69,9 @@ export default function RslHeadline({ rsl, className = '' }) {
           <span className="text-[32px] leading-none">{display.lowerHours}–{display.upperHours}</span>
           <span className="text-sm font-semibold text-slate-500">{t('jam')}</span>
         </p>
-        <p className="mt-1 text-[11px] leading-snug text-slate-500">
-          {t('Batas penuh')}: {fmt(lowerHours)}–{fmt(upperHours)} {t('jam')} · {t('berbasis {n} sesi referensi kering', { n: nReferenceSessions })}
-        </p>
         <p className="mt-1 text-[11px] leading-snug text-amber-700">
           {t('Sampel belum diverifikasi operator. Ini referensi historis bersama, bukan prediksi individual dan bukan kondisi sampel yang dikonfirmasi.')}
         </p>
-        {(rsl.metadata?.referenceVersion || rsl.generatedAt || rsl.snapshotAt) && (
-          <p className="mt-1 text-[11px] text-slate-500">
-            {[
-              rsl.metadata?.referenceVersion ? `${t('Referensi')} ${rsl.metadata.referenceVersion}` : null,
-              rsl.metadata?.referenceStorageCondition || null,
-              rsl.generatedAt || rsl.snapshotAt
-                ? `${t('dihitung')} ${formatDateTime(rsl.generatedAt || rsl.snapshotAt)}`
-                : null,
-            ].filter(Boolean).join(' · ')}
-          </p>
-        )}
         <p className="mt-1 text-[11px] font-medium text-slate-600">
           {t('Waktu berjalan')}: {fmt(rsl.elapsedHours, 2)} {t('jam sejak eksperimen dimulai')}
         </p>
@@ -125,17 +94,6 @@ export default function RslHeadline({ rsl, className = '' }) {
       <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
         {t(REASON_DETAIL[reason] || 'Tidak ada angka estimasi yang dibuat untuk kondisi ini.')}
       </p>
-      {(rsl.metadata?.referenceVersion || rsl.generatedAt || rsl.snapshotAt) && (
-        <p className="mt-1 text-[11px] text-slate-500">
-          {[
-            rsl.metadata?.referenceVersion ? `${t('Referensi')} ${rsl.metadata.referenceVersion}` : null,
-            rsl.metadata?.referenceStorageCondition || null,
-            rsl.generatedAt || rsl.snapshotAt
-              ? `${rsl.isSnapshot ? t('snapshot') : t('dihitung')} ${formatDateTime(rsl.generatedAt || rsl.snapshotAt)}`
-              : null,
-          ].filter(Boolean).join(' · ')}
-        </p>
-      )}
       {rsl.elapsedHours !== null && rsl.elapsedHours !== undefined && (
         <p className="mt-1 text-[11px] font-medium text-slate-600">
           {t('Waktu berjalan')}: {fmt(rsl.elapsedHours, 2)} {t('jam sejak eksperimen dimulai')}

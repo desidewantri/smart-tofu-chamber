@@ -255,15 +255,13 @@ function Body({ d, zones, fetchedAt }) {
 
       {/* Tren + rekomendasi + kualitas data */}
       <div className="grid gap-4 xl:grid-cols-3">
-        <div className="card p-5 sm:p-6 xl:col-span-2">
-          <h3 className="font-semibold text-slate-900">{t('Tren Umur Simpan')}</h3>
-          <p className="mb-3 mt-1 text-xs text-slate-500">{t('Perkiraan sisa umur simpan dari waktu ke waktu sejak tahu masuk.')}</p>
-          {d.trend.length > 1 ? (
+        {(d.trend?.length || 0) > 1 && (
+          <div className="card p-5 sm:p-6 xl:col-span-2">
+            <h3 className="font-semibold text-slate-900">{t('Tren Umur Simpan')}</h3>
+            <p className="mb-3 mt-1 text-xs text-slate-500">{t('Perkiraan sisa umur simpan dari waktu ke waktu sejak tahu masuk.')}</p>
             <ShelfLifeChart data={d.trend} zones={zones} color={style.hex} height={280} />
-          ) : (
-            <EmptyState title="Belum cukup data prediksi" description="Grafik muncul setelah ada beberapa prediksi pada periode ini." />
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="card p-5">

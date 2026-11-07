@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, AlertTriangle, BookOpenCheck } from 'lucide-react';
+import { Activity, AlertTriangle, BookOpenCheck, ChevronDown } from 'lucide-react';
 import { useI18n } from '@/context/I18nContext';
 import { cn } from '@/lib/utils';
 
@@ -8,6 +8,28 @@ const fmt = (v, d = 2) =>
   v === null || v === undefined
     ? '—'
     : Number(v).toLocaleString('id-ID', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+function Disclosure({ icon, title, subtitle, badge, children }) {
+  const { t } = useI18n();
+  return (
+    <details className="card group p-5">
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/40 [&::-webkit-details-marker]:hidden">
+        <div>
+          <h3 className="flex items-center gap-2 font-semibold text-slate-900">
+            {icon} {title}
+          </h3>
+          <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
+        </div>
+        <span className="flex shrink-0 items-center gap-2">
+          {badge}
+          <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" aria-hidden="true" />
+        </span>
+      </summary>
+      <div className="pt-1">{children}</div>
+      <p className="mt-2 text-[11px] text-slate-400">{t('Buka untuk melihat detail.')}</p>
+    </details>
+  );
+}
 
 export default function RslAnalysisPanel({ rsl }) {
   const { t } = useI18n();
@@ -18,18 +40,16 @@ export default function RslAnalysisPanel({ rsl }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <div className="card p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="flex items-center gap-2 font-semibold text-slate-900">
-              <Activity className="h-4 w-4 text-teal-600" /> M2 · Turnbull NPMLE
-            </h3>
-            <p className="mt-1 text-xs text-slate-500">{t('Support sisa umur bersyarat; bukan interval kepercayaan.')}</p>
-          </div>
+      <Disclosure
+        icon={<Activity className="h-4 w-4 text-teal-600" aria-hidden="true" />}
+        title="M2 · Turnbull NPMLE"
+        subtitle={t('Support sisa umur bersyarat; bukan interval kepercayaan.')}
+        badge={
           <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset', m2?.status === 'OK' ? 'bg-teal-50 text-teal-700 ring-teal-600/20' : 'bg-slate-100 text-slate-600 ring-slate-500/20')}>
             {m2?.status || 'NOT_AVAILABLE'}
           </span>
-        </div>
+        }
+      >
         {m2?.components?.length ? (
           <ul className="mt-3 space-y-2 text-sm text-slate-700">
             {m2.components.map((c, i) => (
@@ -45,20 +65,18 @@ export default function RslAnalysisPanel({ rsl }) {
         <p className="mt-3 text-[11px] leading-snug text-slate-500">
           {m2?.note || t('Massa NPMLE hanya teridentifikasi pada irisan maksimal; lokasi waktu peristiwa di dalam support tidak teridentifikasi.')}
         </p>
-      </div>
+      </Disclosure>
 
-      <div className="card p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="flex items-center gap-2 font-semibold text-slate-900">
-              <BookOpenCheck className="h-4 w-4 text-indigo-600" /> M3 · Weibull A0
-            </h3>
-            <p className="mt-1 text-xs text-slate-500">{t('Komparator parametrik eksploratif; bukan model tervalidasi.')}</p>
-          </div>
+      <Disclosure
+        icon={<BookOpenCheck className="h-4 w-4 text-indigo-600" aria-hidden="true" />}
+        title="M3 · Weibull A0"
+        subtitle={t('Komparator parametrik eksploratif; bukan model tervalidasi.')}
+        badge={
           <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset', m3?.available ? 'bg-indigo-50 text-indigo-700 ring-indigo-600/20' : 'bg-slate-100 text-slate-600 ring-slate-500/20')}>
             {m3?.available ? 'AVAILABLE' : m3?.status || 'NOT_AVAILABLE'}
           </span>
-        </div>
+        }
+      >
         {m3?.available ? (
           <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <div className="rounded-lg bg-slate-50 px-3 py-2">
@@ -90,7 +108,7 @@ export default function RslAnalysisPanel({ rsl }) {
         <p className="mt-3 text-[11px] leading-snug text-slate-500">
           {t('Dengan hanya tiga endpoint kering, bentuk Weibull tidak stabil. Nilai ini hanya pembanding eksploratif.')}
         </p>
-      </div>
+      </Disclosure>
     </div>
   );
 }

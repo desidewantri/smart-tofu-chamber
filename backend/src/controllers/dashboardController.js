@@ -16,12 +16,13 @@ const rslService = require('../services/rslService');
  */
 async function batteryStatus(settings, now = Date.now()) {
   const c = await Chamber.findOne({ battery: { $ne: null } }).sort({ batteryAt: -1 }).lean();
-  if (!c) return { percent: null, level: null, at: null, stale: false };
+  if (!c) return { percent: null, level: null, at: null, stale: false, chamberId: null };
   return {
     percent: c.battery,
     level: batteryLevel(c.battery),
     at: c.batteryAt,
     stale: !isConnected({ lastSeenAt: c.batteryAt }, settings, now),
+    chamberId: c.chamberId,
   };
 }
 exports.batteryStatus = batteryStatus;
