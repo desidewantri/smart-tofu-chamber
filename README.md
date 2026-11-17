@@ -126,6 +126,16 @@ Aplikasi dan API memakai satu alamat: `https://DOMAIN` (frontend) dan `https://D
 
 Memperbarui aplikasi: `git pull` lalu ulangi langkah 5. Jangan jalankan `npm run seed` di server (menghapus data).
 
+### Model Riset RSL V2.1 (FastAPI Microservice)
+TOSCHA mengintegrasikan model Bayesian Weibull time-only (RSL V2.1) melalui container terpisah `rsl`:
+- Variabel lingkungan di `backend/.env`:
+  - `RSL_MODE=live` untuk mengaktifkan estimasi model riset V2.1 (default `off`).
+  - `RSL_SERVICE_URL=http://rsl:8001` (diatur otomatis oleh compose).
+- Migrasi sesi historis (tandai `mock_legacy`):
+  - Jalankan di container backend: `docker exec smart-tofu-chamber-backend-1 node scripts/migrate-legacy-rsl.js --apply`
+- Rollback darurat:
+  - Ubah `RSL_MODE=off` di `backend/.env` lalu `docker compose -f docker-compose.prod.yml up -d backend`. Dashboard akan kembali ke model mock lama tanpa menghentikan monitoring sensor.
+
 ## Aplikasi di HP (PWA)
 TOSCHA bisa dipasang di HP dan laptop seperti aplikasi, tanpa Play Store atau App Store.
 

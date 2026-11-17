@@ -23,6 +23,21 @@ services:
       - ./deploy/mosquitto-passwd:/mosquitto/config/passwd:ro
       - mosquitto-data:/mosquitto/data
 
+  rsl:
+    build: ./rsl_service
+    restart: unless-stopped
+    expose:
+      - "8001"
+    volumes:
+      - rsl-data:/data
+    environment:
+      RSL_DB_PATH: /data/consumer_runtime.sqlite
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8001/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
   backend:
     build: ./backend
     restart: unless-stopped
@@ -32,9 +47,14 @@ services:
       MONGODB_URI: mongodb://mongo:27017/smart_tofu_chamber
       MQTT_URL: mqtt://mosquitto:1883
       CORS_ORIGIN: https://${DOMAIN}
+      RSL_SERVICE_URL: http://rsl:8001
     depends_on:
-      - mongo
-      - mosquitto
+      mongo:
+        condition: service_started
+      mosquitto:
+        condition: service_started
+      rsl:
+        condition: service_healthy
 
   frontend:
     build:
@@ -68,3 +88,4 @@ volumes:
   mosquitto-data:
   caddy-data:
   caddy-config:
+  rsl-data:
