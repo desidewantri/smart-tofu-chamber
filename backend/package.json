@@ -9,6 +9,7 @@
     "dev": "nodemon src/server.js",
     "seed": "node scripts/seed.js",
     "simulate": "node scripts/simulator.js",
+    "migrate:legacy": "node scripts/migrate-legacy-rsl.js",
     "test": "node --test"
   },
   "engines": {
