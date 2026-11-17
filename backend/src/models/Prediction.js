@@ -10,7 +10,7 @@ const predictionSchema = new mongoose.Schema(
     shelfLifeJam: { type: Number, required: true },
     modelUsed: {
       type: String,
-      enum: ['random_forest', 'lstm', 'hybrid', 'mock'],
+      enum: ['random_forest', 'lstm', 'hybrid', 'mock', 'v21_weibull', 'mock_legacy'],
       default: 'mock',
     },
     prediksiDibuat: { type: Date, required: true },

@@ -21,6 +21,12 @@ const sessionSchema = new mongoose.Schema(
     shelfLifeAwal: { type: Number, default: null }, // prediksi terbaru (jam)
     prediksiDibuat: { type: Date, default: null }, // t0 prediksi terbaru
     modelUsed: { type: String, default: null },
+    rslDomain: { type: String, enum: ['IN_DOMAIN', 'OUT_OF_DOMAIN', 'LEGACY', null], default: null },
+    rslState: { type: String, default: null },
+    rslPi80Low: { type: Number, default: null },
+    rslPi80High: { type: Number, default: null },
+    rslCalculatedAt: { type: Date, default: null },
+    legacy: { type: Boolean, default: false },
     readingCount: { type: Number, default: 0 },
     statusAkhir: { type: String, default: null }, // status saat sesi ditutup
     sisaAkhirJam: { type: Number, default: null },

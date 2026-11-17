@@ -4,6 +4,7 @@ const SensorReading = require('../models/SensorReading');
 const Prediction = require('../models/Prediction');
 const ApiError = require('../utils/ApiError');
 const predictionService = require('./predictionService');
+const { sessionRslFields } = require('../utils/rslMapping');
 const { parseBattery } = require('../utils/battery');
 
 const HISTORY_WINDOW = 12; // W = 12 langkah (60 menit) untuk LSTM
@@ -151,29 +152,43 @@ async function ingestReading(payload, { topicChamberId, seenAt, source = null } 
       n_t: nT,
       history,
       features,
+      sessionMongoId: String(session._id),
+      monitoringStartAt: session.masuk,
+      currentTimestamp: data.timestamp,
+      tempC: data.suhu,
+      humidPct: data.rh,
+      connected: true,
     });
 
     // Data impor (Sheet): prediksi dicatat pada waktu baris tersebut agar grafik & hitung mundur sesuai.
     const now = seenAt ? new Date(Math.min(new Date(seenAt).getTime(), Date.now())) : new Date();
-    prediction = await Prediction.create({
-      sesiId: session._id,
-      chamberId: data.chamberId,
-      tvoc_snapshot: data.tvoc,
-      suhu_snapshot: data.suhu,
-      rh_snapshot: data.rh,
-      shelfLifeJam: result.shelfLifeJam,
-      modelUsed: result.modelUsed,
-      prediksiDibuat: now,
-    });
+    const fields =
+      result.source === 'live'
+        ? sessionRslFields(result, { previous: session })
+        : { shelfLifeAwal: result.shelfLifeJam, prediksiDibuat: now, modelUsed: result.modelUsed };
+
+    if (fields.shelfLifeAwal !== null) {
+      prediction = await Prediction.create({
+        sesiId: session._id,
+        chamberId: data.chamberId,
+        tvoc_snapshot: data.tvoc,
+        suhu_snapshot: data.suhu,
+        rh_snapshot: data.rh,
+        shelfLifeJam: fields.shelfLifeAwal,
+        modelUsed: fields.modelUsed,
+        prediksiDibuat: fields.prediksiDibuat,
+      });
+    }
 
     const set = {
-      shelfLifeAwal: result.shelfLifeJam,
-      prediksiDibuat: now,
-      modelUsed: result.modelUsed,
+      ...fields,
       readingCount: nT,
     };
-    if (session.shelfLifeMulai === null || session.shelfLifeMulai === undefined) {
-      set.shelfLifeMulai = result.shelfLifeJam;
+    if (
+      (session.shelfLifeMulai === null || session.shelfLifeMulai === undefined) &&
+      fields.shelfLifeAwal !== null
+    ) {
+      set.shelfLifeMulai = fields.shelfLifeAwal;
     }
     session = await Session.findByIdAndUpdate(session._id, { $set: set }, { new: true });
   } catch (err) {
