@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/context/I18nContext';
 import { classifyShelfLife } from '@/lib/utils';
 import { getLocale } from '@/lib/locale';
+import { RESEARCH_RSL_MODE } from '@/lib/features';
 
 function greetingKey(hour) {
   if (hour >= 4 && hour < 11) return 'Selamat pagi';
@@ -40,11 +41,14 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
   const now = new Date(fetchedAt || Date.now());
 
   const count = { segera: 0, tidak: 0 };
-  active.forEach(({ session }) => {
-    const st = classifyShelfLife((session?.sisaDetik ?? 0) / 3600, zones);
-    if (st === 'Segera Konsumsi') count.segera += 1;
-    if (st === 'Tidak Layak Konsumsi') count.tidak += 1;
-  });
+  if (!RESEARCH_RSL_MODE) {
+    active.forEach(({ session }) => {
+      if (session?.sisaDetik === null || session?.sisaDetik === undefined) return;
+      const st = classifyShelfLife(session.sisaDetik / 3600, zones);
+      if (st === 'Segera Konsumsi') count.segera += 1;
+      if (st === 'Tidak Layak Konsumsi') count.tidak += 1;
+    });
+  }
   const chambers = [...active, ...idle].map((x) => x.chamber).filter((c) => c.enabled);
   const offline = chambers.filter((c) => !c.connected).length;
 
@@ -53,6 +57,7 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
   if (count.tidak) parts.push(t('{n} chamber sudah tidak layak dikonsumsi', { n: count.tidak }));
   let summary;
   if (!active.length) summary = t('Belum ada tahu yang sedang disimpan.');
+  else if (RESEARCH_RSL_MODE) summary = t('{n} chamber sedang dalam pemantauan.', { n: active.length });
   else if (!parts.length) summary = t('Semua tahu di chamber masih layak dikonsumsi.');
   else summary = `${t('Hari ini')} ${parts.join(` ${t('dan')} `)}.`;
   const sensor = offline ? t('{n} sensor terputus.', { n: offline }) : t('Semua sensor terhubung.');
