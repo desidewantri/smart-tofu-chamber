@@ -19,6 +19,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { EmptyState, ErrorState, Loading } from '@/components/common/States';
 import ShelfLifeChart from '@/components/dashboard/ShelfLifeChart';
 import SensorHistoryChart from './SensorHistoryChart';
+import { RESEARCH_RSL_MODE } from '@/lib/features';
 
 const SENSORS = [
   { key: 'suhu', label: 'Suhu', unit: '°C', yLabel: 'Suhu (°C)', color: '#f97316', decimals: 1, minPad: 1 },
@@ -74,7 +75,16 @@ function Body({ d, zones, fetchedAt }) {
   const { t } = useI18n();
   const seconds = useCountdown(d.remainingSeconds, fetchedAt);
   const live = d.session?.status === 'aktif';
-  const status = live ? classifyShelfLife((seconds ?? 0) / 3600, zones) : d.status;
+  const isPreparing = live && (d.remainingSeconds === null || seconds === null);
+
+  let status = d.status;
+  if (live) {
+    if (isPreparing || RESEARCH_RSL_MODE) {
+      status = '__neutral';
+    } else {
+      status = classifyShelfLife((seconds ?? 0) / 3600, zones);
+    }
+  }
   const style = STATUS_STYLES[status] || NEUTRAL_STYLE;
 
   const nowMs = Date.now();
@@ -83,10 +93,10 @@ function Body({ d, zones, fetchedAt }) {
   const storedSec = Math.max(0, (endMs - masukMs) / 1000);
   const masuk = whenText(masukMs, false);
   // "Perkiraan Tidak Layak" = saat status berubah ke Tidak Layak Konsumsi (sisa umur < Batas Rawan).
-  const toTidakSec = (seconds ?? 0) - zones.rawanHours * 3600;
-  const until = live && toTidakSec > 0 ? whenText(nowMs + toTidakSec * 1000) : null;
+  const toTidakSec = !isPreparing && seconds !== null ? seconds - zones.rawanHours * 3600 : null;
+  const until = live && toTidakSec !== null && toTidakSec > 0 ? whenText(nowMs + toTidakSec * 1000) : null;
   // Bila sudah lewat: kapan status pertama kali berubah ke Tidak Layak (prediksi pertama < Batas Rawan).
-  const firstBad = !until ? (d.trend || []).find((p) => p.shelfLife < zones.rawanHours) : null;
+  const firstBad = !until && !isPreparing ? (d.trend || []).find((p) => p.shelfLife < zones.rawanHours) : null;
   const passedAt = firstBad ? whenText(masukMs + firstBad.elapsedHours * 3600000) : null;
   const untilText = until ? `${until.day} ±${until.time}` : '';
   const q = d.dataQuality;
@@ -103,24 +113,32 @@ function Body({ d, zones, fetchedAt }) {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className={cn('rounded-2xl border-2 px-4 py-3.5 shadow-card', style.card)}>
           <p className="text-xs font-semibold text-slate-500">{t('Status Saat Ini')}</p>
-          <div className="mt-1.5"><StatusBadge status={status} /></div>
+          <div className="mt-1.5">
+            <StatusBadge status={status}>
+              {isPreparing ? t('Menyiapkan') : RESEARCH_RSL_MODE && live ? t('Estimasi Riset') : undefined}
+            </StatusBadge>
+          </div>
           <p className="mt-1.5 text-xs text-slate-500">
             {t('Sesi')} {d.session.sesiCode} · {d.chamber?.name || `Chamber ${d.session.chamberId}`}
           </p>
         </div>
-        <Kpi label={t('Perkiraan Sisa Umur')}>
-          <p className={cn('mt-1 text-2xl font-bold tabular-nums', style.text)}>{formatHoursLeft(seconds ?? 0)}</p>
+        <Kpi label={RESEARCH_RSL_MODE ? t('Estimasi Sisa Riset') : t('Perkiraan Sisa Umur')}>
+          <p className={cn('mt-1 text-2xl font-bold tabular-nums', isPreparing ? 'text-slate-500 text-lg' : style.text)}>
+            {isPreparing ? t('Menunggu prediksi…') : seconds === null ? '—' : formatHoursLeft(seconds)}
+          </p>
         </Kpi>
-        <Kpi label={t('Perkiraan Tidak Layak')}>
-          {until ? (
+        <Kpi label={RESEARCH_RSL_MODE ? t('Batas Pemantauan') : t('Perkiraan Tidak Layak')}>
+          {isPreparing ? (
+            <p className="mt-1 text-sm font-medium text-slate-500">{t('Mengumpulkan data awal…')}</p>
+          ) : until ? (
             <>
               <p className="mt-1 text-lg font-bold capitalize text-slate-900">{until.day}</p>
               <p className="text-xs text-slate-500">{t('sekitar pukul {t}', { t: until.time })}</p>
             </>
           ) : (
             <>
-              <p className="mt-1 text-lg font-bold text-slate-900">{live ? t('Sudah lewat') : '—'}</p>
-              {passedAt && (
+              <p className="mt-1 text-lg font-bold text-slate-900">{live ? (RESEARCH_RSL_MODE ? '—' : t('Sudah lewat')) : '—'}</p>
+              {passedAt && !RESEARCH_RSL_MODE && (
                 <p className="text-xs text-slate-500">{t('status berubah {d} ±{t}', { d: passedAt.day, t: passedAt.time })}</p>
               )}
             </>
