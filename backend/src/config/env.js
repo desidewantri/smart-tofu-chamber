@@ -63,4 +63,9 @@ module.exports = {
     url: (process.env.ML_SERVICE_URL || 'http://127.0.0.1:8000').replace(/\/$/, ''),
     timeoutMs: Number(process.env.ML_TIMEOUT_MS) || 3000,
   },
+  rsl: {
+    mode: (process.env.RSL_MODE || 'off').toLowerCase(), // off | live
+    url: (process.env.RSL_SERVICE_URL || 'http://127.0.0.1:8001').replace(/\/$/, ''),
+    timeoutMs: Number(process.env.RSL_TIMEOUT_MS) || 4000,
+  },
 };
