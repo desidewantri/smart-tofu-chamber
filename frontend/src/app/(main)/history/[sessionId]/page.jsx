@@ -138,7 +138,7 @@ export default function SessionDetailPage() {
         <h3 className="font-semibold text-slate-900">{t('Prediksi sisa umur simpan')}</h3>
         <p className="mb-3 mt-1 text-xs text-slate-500">{t('{n} prediksi sepanjang sesi.', { n: stats.predictions })}</p>
         {predictions.length > 1 ? (
-          <ShelfLifeChart data={predictions} zones={zones} xKey="elapsedHours" yKey="shelfLifeJam" color={style.hex} height={260} />
+          <ShelfLifeChart data={predictions} xKey="elapsedHours" yKey="shelfLifeJam" color={style.hex} height={260} />
         ) : (
           <p className="py-10 text-center text-sm text-slate-500">{t('Belum ada cukup prediksi.')}</p>
         )}

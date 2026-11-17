@@ -199,7 +199,7 @@ function Body({ d, zones, fetchedAt }) {
           <h3 className="font-semibold text-slate-900">{t('Tren Umur Simpan')}</h3>
           <p className="mb-3 mt-1 text-xs text-slate-500">{t('Perkiraan sisa umur simpan dari waktu ke waktu sejak tahu masuk.')}</p>
           {d.trend.length > 1 ? (
-            <ShelfLifeChart data={d.trend} zones={zones} color={style.hex} height={280} />
+            <ShelfLifeChart data={d.trend} color={style.hex} height={280} />
           ) : (
             <EmptyState title="Belum cukup data prediksi" description="Grafik muncul setelah ada beberapa prediksi pada periode ini." />
           )}

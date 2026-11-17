@@ -75,7 +75,7 @@ export default function ChamberCard({ card, zones, thresholds, fetchedAt, onChan
       <section>
         <h3 className="mb-0.5 text-xs font-semibold text-slate-700 [@media(max-height:700px)]:hidden">{t('Perkiraan Sisa Umur Simpan')}</h3>
         {chart.length > 1 ? (
-          <ShelfLifeChart data={chart} zones={zones} color={style.hex} heightClass="h-[150px] [@media(max-height:700px)]:h-[112px] [@media(min-height:800px)]:h-[175px]" />
+          <ShelfLifeChart data={chart} color={style.hex} heightClass="h-[150px] [@media(max-height:700px)]:h-[112px] [@media(min-height:800px)]:h-[175px]" />
         ) : (
           <p className="rounded-xl bg-white/70 py-10 text-center text-sm text-slate-500">{t('Menunggu prediksi pertama…')}</p>
         )}
