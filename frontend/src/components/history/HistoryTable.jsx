@@ -18,14 +18,18 @@ export default function HistoryTable({ rows, chambersByNo }) {
     {
       key: 'status',
       header: 'Status Akhir',
-      render: (r) =>
-        r.status === 'aktif' ? (
+      render: (r) => {
+        if (r.legacy) {
+          return <StatusBadge status="__neutral">{t('Arsip model lama')}</StatusBadge>;
+        }
+        return r.status === 'aktif' ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-500" /> {t('Berjalan')}
           </span>
         ) : (
           <StatusBadge status={r.statusAkhir} />
-        ),
+        );
+      },
     },
     {
       key: 'aksi',

@@ -118,14 +118,22 @@ export default function SessionDetailPage() {
             Chamber {s.chamberId} · {formatDateTime(s.masuk)} → {s.selesai ? formatDateTime(s.selesai) : t('berjalan')}
           </p>
         </div>
-        {s.status === 'aktif' ? <StatusBadge status="__run">Berjalan</StatusBadge> : <StatusBadge status={s.statusAkhir} className="!px-3.5 !py-1.5 !text-sm" />}
+        {s.legacy ? (
+          <StatusBadge status="__neutral" className="!px-3.5 !py-1.5 !text-sm">
+            {t('Arsip model lama')}
+          </StatusBadge>
+        ) : s.status === 'aktif' ? (
+          <StatusBadge status="__run">Berjalan</StatusBadge>
+        ) : (
+          <StatusBadge status={s.statusAkhir} className="!px-3.5 !py-1.5 !text-sm" />
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         {[
           ['Durasi', formatDurationShort(s.durasiDetik)],
-          ['Umur simpan awal (prediksi)', s.shelfLifeMulai != null ? `${s.shelfLifeMulai.toFixed(1)} ${t('jam')}` : '—'],
-          ['Sisa saat keluar', s.sisaAkhirJam != null ? formatHoursLeft(s.sisaAkhirJam * 3600) : '—'],
+          ['Umur simpan awal (prediksi)', s.legacy ? '—' : s.shelfLifeMulai != null ? `${s.shelfLifeMulai.toFixed(1)} ${t('jam')}` : '—'],
+          ['Sisa saat keluar', s.legacy ? '—' : s.sisaAkhirJam != null ? formatHoursLeft(s.sisaAkhirJam * 3600) : '—'],
         ].map(([k, v]) => (
           <div key={k} className="card p-4">
             <p className="text-sm font-semibold text-slate-600">{t(k)}</p>
@@ -137,7 +145,9 @@ export default function SessionDetailPage() {
       <section className="card p-5 sm:p-6">
         <h3 className="font-semibold text-slate-900">{t('Prediksi sisa umur simpan')}</h3>
         <p className="mb-3 mt-1 text-xs text-slate-500">{t('{n} prediksi sepanjang sesi.', { n: stats.predictions })}</p>
-        {predictions.length > 1 ? (
+        {s.legacy ? (
+          <p className="py-10 text-center text-sm text-slate-500">{t('Grafik estimasi model lama tidak ditampilkan.')}</p>
+        ) : predictions.length > 1 ? (
           <ShelfLifeChart data={predictions} xKey="elapsedHours" yKey="shelfLifeJam" color={style.hex} height={260} />
         ) : (
           <p className="py-10 text-center text-sm text-slate-500">{t('Belum ada cukup prediksi.')}</p>

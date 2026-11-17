@@ -8,15 +8,18 @@ import { usePolling } from '@/lib/hooks';
 import { PERIOD_OPTIONS } from '@/lib/utils';
 import Tabs from '@/components/common/Tabs';
 import { EmptyState, ErrorState, Loading } from '@/components/common/States';
+import { SHOW_COST_BENEFIT } from '@/lib/features';
 import ConditionAnalysisTab from '@/components/analysis/ConditionAnalysisTab';
 import CostBenefitTab from '@/components/analysis/CostBenefitTab';
 import SeasonalAnalysisTab from '@/components/analysis/SeasonalAnalysisTab';
 
-const TABS = [
+const ALL_TABS = [
   { id: 'kondisi', label: 'Analisis Kondisi' },
   { id: 'biaya', label: 'Biaya dan Manfaat' },
   { id: 'musiman', label: 'Analisis Musiman' },
 ];
+
+const TABS = ALL_TABS.filter((t) => t.id !== 'biaya' || SHOW_COST_BENEFIT);
 
 function AnalysisInner() {
   const { t } = useI18n();

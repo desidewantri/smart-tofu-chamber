@@ -47,6 +47,9 @@ export default function CostBenefitTab({ chamberId, period }) {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-xs text-amber-800">
+        <p className="font-semibold">{t('Dibekukan — dihitung dari label model lama, bukan estimasi V2.1.')}</p>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="Sesi selesai" value={data.sessions} hint={t('{n} kg tahu dipantau', { n: data.totalKg })} />
         <Kpi label="Pendapatan dengan sistem" value={formatRupiah(data.revenueWithSystem)} />

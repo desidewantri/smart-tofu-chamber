@@ -54,20 +54,11 @@ function whenText(ms, roundToHour = true) {
 
 function recommendations(status, live, untilDay) {
   if (!live) return ['Sesi ini sudah selesai. Rekomendasi muncul lagi saat ada tahu baru di chamber.'];
-  const general = [
+  return [
+    'Simpan tahu di wadah bersih dan sejuk; jaga kebersihan chamber dan peralatan.',
     'Jaga suhu ruang tetap stabil — kenaikan suhu mempercepat penurunan kualitas.',
-    'Pastikan chamber tertutup rapat agar pembacaan TVOC akurat.',
+    'Pastikan chamber tertutup rapat agar pembacaan sensor lingkungan stabil.',
   ];
-  if (status === STATUS.TIDAK) {
-    return [
-      'Tahu sudah tidak layak dikonsumsi; keluarkan dari chamber lalu tekan Tahu Sudah Keluar.',
-      'Bersihkan wadah chamber sebelum dipakai untuk tahu berikutnya.',
-    ];
-  }
-  if (status === STATUS.SEGERA) {
-    return ['Tahu sebaiknya segera dikonsumsi atau dijual.', { text: 'Rencanakan sebelum {when}.', when: untilDay }, ...general];
-  }
-  return ['Tahu masih layak; belum perlu tindakan.', { text: 'Rencanakan konsumsi atau penjualan sebelum {when}.', when: untilDay }, ...general];
 }
 
 function Kpi({ label, children, className }) {
@@ -213,6 +204,9 @@ function Body({ d, zones, fetchedAt }) {
                 <li key={i}>{typeof r === 'string' ? t(r) : t(r.text, { when: r.when })}</li>
               ))}
             </ul>
+            <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] leading-relaxed text-slate-500">
+              {t('Suhu, RH, dan TVOC adalah pemantauan lingkungan dan tidak memengaruhi estimasi RSL V2.1.')}
+            </p>
           </div>
 
           {q && (
