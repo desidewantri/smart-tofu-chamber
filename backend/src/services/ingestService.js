@@ -24,8 +24,8 @@ function validatePayload(p, topicChamberId) {
   }
   const chamberId = num(p.chamber_id ?? p.chamberId ?? topicChamberId);
   const tvoc = num(p.tvoc);
-  const suhu = num(p.suhu ?? p.temperature);
-  const rh = num(p.rh ?? p.humidity);
+  const suhu = num(p.suhu ?? p.temperature ?? p.temp);
+  const rh = num(p.rh ?? p.humidity ?? p.humid);
 
   if (!Number.isInteger(chamberId) || chamberId < 1 || chamberId > MAX_CHAMBERS) throw new ApiError(400, `chamber_id harus 1 sampai ${MAX_CHAMBERS} (hanya ada ${MAX_CHAMBERS} chamber)`);
   // Rentang ukur AGS10 adalah 0-99.999 ppb. Nilai tinggi justru muncul saat tahu membusuk,
@@ -34,7 +34,7 @@ function validatePayload(p, topicChamberId) {
   if (!Number.isFinite(suhu) || suhu < -20 || suhu > 80) throw new ApiError(400, 'suhu di luar rentang (-20 s.d. 80 °C)');
   if (!Number.isFinite(rh) || rh < 0 || rh > 100) throw new ApiError(400, 'rh harus 0-100 %');
 
-  let timestamp = p.timestamp ? new Date(p.timestamp) : new Date();
+  let timestamp = p.timestamp ? new Date(p.timestamp) : (p.sampled_at ? new Date(p.sampled_at) : new Date());
   if (Number.isNaN(timestamp.getTime()) || timestamp.getTime() > Date.now() + 24 * 3600 * 1000) {
     timestamp = new Date();
   }
