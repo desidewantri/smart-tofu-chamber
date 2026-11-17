@@ -1,9 +1,8 @@
 """RSL V2.1 inference service TOSCHA.
 
 Modul ini adalah pintu masuk runtime web untuk model riset yang dibekukan
-(RSL V2.1, Bayesian Weibull). Tahap ini hanya memuat verifikasi integritas
-artifact: artifact yang tidak cocok dengan SHA-256 yang dibekukan harus
-menggagalkan proses, bukan diam-diam dipakai.
+(RSL V2.1, Bayesian Weibull). Tahap ini memuat verifikasi integritas
+artifact dan wrapper orchestrator dengan penegakan force=True.
 """
 
 from __future__ import annotations
@@ -11,6 +10,11 @@ from __future__ import annotations
 import hashlib
 import os
 from pathlib import Path
+from typing import Any
+
+from tofu_ml.rsl_orchestration.estimation_scheduler import EstimationScheduler
+from tofu_ml.rsl_orchestration.presentation_adapter import to_consumer_presentation
+from tofu_ml.rsl_orchestration.rsl_orchestrator import RSLOrchestrator
 
 ARTIFACT_PATH: Path = (
     Path(__file__).resolve().parent / "artifacts" / "m0_bayesian_weibull_primary_3u.json"
@@ -50,3 +54,52 @@ def verify_artifact(path: Path, expected_sha256: str) -> None:
         raise ArtifactIntegrityError(
             f"Artifact SHA-256 mismatch: {actual} != {expected_sha256}"
         )
+
+
+def build_orchestrator(
+    *,
+    artifact_path: Path = ARTIFACT_PATH,
+    expected_sha256: str = EXPECTED_SHA256,
+    db_path: Path | None = None,
+) -> RSLOrchestrator:
+    """Bangun instance RSLOrchestrator dengan artifact terverifikasi."""
+    verify_artifact(artifact_path, expected_sha256)
+    scheduler = EstimationScheduler(db_path=db_path) if db_path is not None else None
+    return RSLOrchestrator(
+        model_artifact_path=artifact_path,
+        expected_model_sha256=expected_sha256,
+        scheduler=scheduler,
+        db_path=db_path,
+        blocking_retry=False,
+        max_validation_domain_h=42.8888,
+    )
+
+
+def estimate(
+    orchestrator: RSLOrchestrator,
+    *,
+    session_id: str,
+    monitoring_start_at: str | None,
+    current_timestamp: str | None = None,
+    temp_c: float | None = None,
+    humid_pct: float | None = None,
+    esp32_connected: bool = True,
+) -> dict[str, Any]:
+    """Jalankan estimasi RSL V2.1 dengan force=True dan kembalikan payload gabungan."""
+    session_data = {
+        "session_id": session_id,
+        "monitoring_start_at": monitoring_start_at,
+        "current_timestamp": current_timestamp,
+        "temp_c": temp_c,
+        "humid_pct": humid_pct,
+        "esp32_connected": esp32_connected,
+    }
+    raw = orchestrator.estimate_for_session(
+        session_id=session_id,
+        session_data=session_data,
+        force=True,
+    )
+    presentation = to_consumer_presentation(raw)
+    result = {**raw, **presentation}
+    result["operational_prediction_authorized"] = False
+    return result
