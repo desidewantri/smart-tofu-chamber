@@ -79,10 +79,10 @@ function Body({ d, zones, fetchedAt }) {
 
   let status = d.status;
   if (live) {
-    if (isPreparing || RESEARCH_RSL_MODE) {
+    if (isPreparing) {
       status = '__neutral';
     } else {
-      status = classifyShelfLife((seconds ?? 0) / 3600, zones);
+      status = 'Layak Konsumsi';
     }
   }
   const style = STATUS_STYLES[status] || NEUTRAL_STYLE;
@@ -115,19 +115,19 @@ function Body({ d, zones, fetchedAt }) {
           <p className="text-xs font-semibold text-slate-500">{t('Status Saat Ini')}</p>
           <div className="mt-1.5">
             <StatusBadge status={status}>
-              {isPreparing ? t('Menyiapkan') : RESEARCH_RSL_MODE && live ? t('Estimasi Riset') : undefined}
+              {isPreparing ? t('Menyiapkan') : live ? t('Memantau') : undefined}
             </StatusBadge>
           </div>
           <p className="mt-1.5 text-xs text-slate-500">
             {t('Sesi')} {d.session.sesiCode} · {d.chamber?.name || `Chamber ${d.session.chamberId}`}
           </p>
         </div>
-        <Kpi label={RESEARCH_RSL_MODE ? t('Estimasi Sisa Riset') : t('Perkiraan Sisa Umur')}>
+        <Kpi label={t('Perkiraan Sisa Umur')}>
           <p className={cn('mt-1 text-2xl font-bold tabular-nums', isPreparing ? 'text-slate-500 text-lg' : style.text)}>
             {isPreparing ? t('Menunggu prediksi…') : seconds === null ? '—' : formatHoursLeft(seconds)}
           </p>
         </Kpi>
-        <Kpi label={RESEARCH_RSL_MODE ? t('Batas Pemantauan') : t('Perkiraan Tidak Layak')}>
+        <Kpi label={t('Perkiraan Batas Simpan')}>
           {isPreparing ? (
             <p className="mt-1 text-sm font-medium text-slate-500">{t('Mengumpulkan data awal…')}</p>
           ) : until ? (

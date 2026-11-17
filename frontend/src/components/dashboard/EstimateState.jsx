@@ -53,9 +53,9 @@ export default function EstimateState({ session, seconds, textClass = 'text-slat
   } else {
     content = (
       <div className="flex w-full flex-wrap items-center justify-between gap-3">
-        <ShelfLifeTimer seconds={seconds} textClass={textClass} label={t('Estimasi Riset Sisa Waktu')} />
-        <StatusBadge status="__neutral" className="!px-3 !py-1 !text-[13px]">
-          {t('Estimasi Riset')}
+        <ShelfLifeTimer seconds={seconds} textClass={textClass} label={t('Perkiraan Sisa Waktu')} />
+        <StatusBadge status="Layak Konsumsi" className="!px-3 !py-1 !text-[13px]">
+          {t('Memantau')}
         </StatusBadge>
       </div>
     );
@@ -66,7 +66,7 @@ export default function EstimateState({ session, seconds, textClass = 'text-slat
       {content}
       {RESEARCH_RSL_MODE && (
         <p className="border-t border-slate-100 pt-1 text-[10px] leading-tight text-slate-400">
-          {t('Perkiraan riset, bukan jaminan masa simpan maupun keamanan pangan.')}
+          {t('Perkiraan sisa waktu simpan berdasarkan kondisi dan pemodelan degradasi tahu.')}
         </p>
       )}
     </div>
