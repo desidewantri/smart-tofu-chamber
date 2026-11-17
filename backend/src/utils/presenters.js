@@ -1,13 +1,20 @@
 const { classifyShelfLife, classifyParam, remainingSeconds, DEFAULT_ZONES } = require('./status');
+const env = require('../config/env');
 
 const plain = (doc) => (doc && typeof doc.toObject === 'function' ? doc.toObject() : doc);
 
 /** Bentuk sesi yang dikirim ke frontend (dengan sisa waktu & status terhitung). */
-function sessionView(doc, zones = DEFAULT_ZONES, now = Date.now()) {
+function sessionView(doc, zones = DEFAULT_ZONES, now = Date.now(), { neutralStatus = env.rsl?.mode === 'live' } = {}) {
   const s = plain(doc);
   if (!s) return null;
   const end = s.selesai ? new Date(s.selesai).getTime() : now;
   const sisa = remainingSeconds(s, now);
+  const statusLayak = neutralStatus || sisa === null ? null : classifyShelfLife(sisa / 3600, zones);
+  const rslPi80 =
+    s.rslPi80Low !== null && s.rslPi80Low !== undefined && s.rslPi80High !== null && s.rslPi80High !== undefined
+      ? { low: s.rslPi80Low, high: s.rslPi80High }
+      : null;
+
   return {
     id: String(s._id),
     sesiCode: s.sesiCode,
@@ -25,9 +32,14 @@ function sessionView(doc, zones = DEFAULT_ZONES, now = Date.now()) {
     modelUsed: s.modelUsed,
     readingCount: s.readingCount || 0,
     sisaDetik: sisa,
-    statusLayak: sisa === null ? null : classifyShelfLife(sisa / 3600, zones),
+    statusLayak,
     statusAkhir: s.statusAkhir || null,
     sisaAkhirJam: s.sisaAkhirJam ?? null,
+    rslDomain: s.rslDomain || null,
+    rslState: s.rslState || null,
+    rslPi80,
+    rslCalculatedAt: s.rslCalculatedAt || null,
+    legacy: Boolean(s.legacy),
   };
 }
 

@@ -4,6 +4,7 @@ const SensorReading = require('../models/SensorReading');
 const Prediction = require('../models/Prediction');
 const SystemSetting = require('../models/SystemSetting');
 const asyncHandler = require('../utils/asyncHandler');
+const env = require('../config/env');
 const { latestBattery } = require('../services/batteryService');
 const { STATUS, classifyShelfLife, remainingSeconds } = require('../utils/status');
 const { sessionView, readingView, sensorZones, chamberView, downsample, isConnected } = require('../utils/presenters');
@@ -91,6 +92,7 @@ exports.notifications = asyncHandler(async (_req, res) => {
   const sessions = await Session.find({ status: 'aktif' });
   const chamberOf = new Map(chambers.map((c) => [c.chamberId, c]));
 
+  const research = env.rsl?.mode === 'live';
   sessions.forEach((s) => {
     const c = chamberOf.get(s.chamberId);
     const label = c ? c.name : `Chamber ${s.chamberId}`;
@@ -99,15 +101,15 @@ exports.notifications = asyncHandler(async (_req, res) => {
     if (status === STATUS.TIDAK && n.onTidakLayak) {
       items.push({
         id: `tidak-${s._id}`, level: 'danger', chamberId: s.chamberId,
-        title: `${label} Tidak Layak Konsumsi`,
-        message: `Sisa umur simpan ${s.sesiCode} kurang dari ${settings.zones.rawanHours} jam.`,
+        title: research ? `${label} — estimasi riset sisa < ${settings.zones.rawanHours} jam` : `${label} Tidak Layak Konsumsi`,
+        message: research ? `Perkiraan riset untuk ${s.sesiCode}; bukan jaminan keamanan pangan.` : `Sisa umur simpan ${s.sesiCode} kurang dari ${settings.zones.rawanHours} jam.`,
         time: s.prediksiDibuat,
       });
     } else if (status === STATUS.SEGERA && n.onSegeraJual) {
       items.push({
         id: `segera-${s._id}`, level: 'warning', chamberId: s.chamberId,
-        title: `${label} Segera Konsumsi`,
-        message: `Sisa umur simpan ${s.sesiCode} kurang dari ${settings.zones.segarHours} jam.`,
+        title: research ? `${label} — estimasi riset sisa < ${settings.zones.segarHours} jam` : `${label} Segera Konsumsi`,
+        message: research ? `Perkiraan riset untuk ${s.sesiCode}; bukan jaminan keamanan pangan.` : `Sisa umur simpan ${s.sesiCode} kurang dari ${settings.zones.segarHours} jam.`,
         time: s.prediksiDibuat,
       });
     }
