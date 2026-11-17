@@ -12,6 +12,7 @@ import Modal from '@/components/common/Modal';
 import { useToast } from '@/components/common/Toast';
 import ShelfLifeTimer from './ShelfLifeTimer';
 import ShelfLifeChart from './ShelfLifeChart';
+import EstimateState from './EstimateState';
 import { SensorTile } from './SensorBar';
 
 /** Kartu chamber ringkas: seluruh isi muat dalam satu layar, tanpa gulir panjang. */
@@ -24,7 +25,8 @@ export default function ChamberCard({ card, zones, thresholds, fetchedAt, onChan
 
   const seconds = useCountdown(session.sisaDetik, fetchedAt);
   const status = classifyShelfLife(seconds / 3600, zones);
-  const style = STATUS_STYLES[status] || NEUTRAL_STYLE;
+  const isResearchInDomain = session.rslDomain === 'IN_DOMAIN' && !session.legacy;
+  const style = isResearchInDomain ? (STATUS_STYLES[status] || NEUTRAL_STYLE) : NEUTRAL_STYLE;
 
   async function closeSession() {
     setBusy(true);
@@ -67,10 +69,7 @@ export default function ChamberCard({ card, zones, thresholds, fetchedAt, onChan
       </header>
 
       {/* Hitung mundur + status */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/80 px-3.5 py-2 ring-1 ring-inset ring-slate-200/70">
-        <ShelfLifeTimer seconds={seconds} textClass={style.text} />
-        <StatusBadge status={status} className="!px-3 !py-1 !text-[13px]" />
-      </div>
+      <EstimateState session={session} seconds={seconds} textClass={style.text} />
 
       {/* Grafik */}
       <section>
