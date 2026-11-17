@@ -1,9 +1,12 @@
 const env = require('../config/env');
 const { predictMock } = require('../utils/mlMock');
+const rslClient = require('./rslClient');
+const { deriveRslDomain } = require('../utils/rslMapping');
 
 /** Samakan nama model dari ml-service ke enum di database. */
 function normalizeModel(name) {
   const n = String(name || '').toLowerCase();
+  if (n.includes('weibull') || n.includes('v21')) return 'v21_weibull';
   if (n.includes('lstm')) return 'lstm';
   if (n.includes('random') || n === 'rf') return 'random_forest';
   if (n.includes('mock')) return 'mock';
@@ -38,7 +41,40 @@ async function callLive(input) {
   };
 }
 
+async function predictRsl(input, client = rslClient) {
+  const res = await client.estimate({
+    sessionId: input.sessionMongoId,
+    startAt: input.monitoringStartAt,
+    now: input.currentTimestamp,
+    tempC: input.tempC,
+    humidPct: input.humidPct,
+    connected: input.connected,
+  });
+
+  const shelfLifeJam =
+    res.researchDisplayEligible && Number.isFinite(res.medianRslHours)
+      ? Math.round(res.medianRslHours * 100) / 100
+      : null;
+
+  const rslDomain = deriveRslDomain(res);
+  const rslState = res.applicationState;
+
+  return {
+    shelfLifeJam,
+    modelUsed: 'v21_weibull',
+    source: 'live',
+    rslDomain,
+    rslState,
+    rslPi80Low: res.pi80LowerHours ?? null,
+    rslPi80High: res.pi80UpperHours ?? null,
+    rslCalculatedAt: res.lastCalculatedAt,
+  };
+}
+
 async function predict(input, mode = env.ml.mode) {
+  if (env.rsl?.mode === 'live') {
+    return predictRsl(input);
+  }
   if (mode === 'live') return { ...(await callLive(input)), source: 'live' };
   if (mode === 'auto') {
     try {
@@ -50,4 +86,4 @@ async function predict(input, mode = env.ml.mode) {
   return { ...predictMock(input), source: 'mock' };
 }
 
-module.exports = { predict, normalizeModel };
+module.exports = { predict, predictRsl, normalizeModel };
