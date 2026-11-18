@@ -10,8 +10,6 @@ const Session = require('../src/models/Session');
 const SensorReading = require('../src/models/SensorReading');
 const Prediction = require('../src/models/Prediction');
 const SystemSetting = require('../src/models/SystemSetting');
-const RslSnapshot = require('../src/models/RslSnapshot');
-const NotificationEvent = require('../src/models/NotificationEvent');
 const { classifyShelfLife } = require('../src/utils/status');
 const { mulberry32, gauss, buildSession, baseTslHours, round } = require('./lib/simulate');
 
@@ -24,7 +22,6 @@ async function main() {
   await Promise.all([
     User.deleteMany({}), Chamber.deleteMany({}), Session.deleteMany({}),
     SensorReading.deleteMany({}), Prediction.deleteMany({}), SystemSetting.deleteMany({}),
-    RslSnapshot.deleteMany({}), NotificationEvent.deleteMany({}),
   ]);
   await Promise.all([Session.syncIndexes(), SensorReading.syncIndexes(), Prediction.syncIndexes()]);
 

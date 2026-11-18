@@ -32,13 +32,10 @@ export function ZonePill({ zone }) {
 }
 
 /** Status koneksi chamber. */
-export function ConnectionBadge({ enabled, connected, waiting = false }) {
+export function ConnectionBadge({ enabled, connected }) {
   const { t } = useI18n();
   if (!enabled) {
     return <StatusBadge status="__off">{t('Tidak Aktif')}</StatusBadge>;
-  }
-  if (waiting) {
-    return <StatusBadge status="__waiting">{t('Menunggu data')}</StatusBadge>;
   }
   if (connected) {
     return (

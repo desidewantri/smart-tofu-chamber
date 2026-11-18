@@ -1,5 +1,0 @@
-"""TofuSense v2.3 — post-hoc exploratory statistical RSL baseline.
-
-POST_HOC_EXPLORATORY / DESCRIPTIVE / N_INFORMATIVE_DRY_ENDPOINTS = 3
-TVOC_CONTRIBUTION = NOT_ESTABLISHED
-"""

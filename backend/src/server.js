@@ -4,7 +4,6 @@ const app = require('./app');
 const mqttService = require('./services/mqttService');
 const notifierService = require('./services/notifierService');
 const sheetImportService = require('./services/sheetImportService');
-const rslSnapshotService = require('./services/rslSnapshotService');
 const SystemSetting = require('./models/SystemSetting');
 const { runMigrations } = require('./utils/migrations');
 
@@ -22,7 +21,6 @@ async function main() {
   mqttService.start();
   notifierService.start();
   sheetImportService.start();
-  rslSnapshotService.start();
 
   const server = app.listen(env.port, () => {
     console.log(`[api] berjalan di http://localhost:${env.port}  (ML_MODE=${env.ml.mode})`);
@@ -32,7 +30,6 @@ async function main() {
     console.log('\n[api] mematikan server...');
     notifierService.stop();
     sheetImportService.stop();
-    rslSnapshotService.stop();
     await mqttService.stop();
     server.close(() => process.exit(0));
   };

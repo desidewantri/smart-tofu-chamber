@@ -1,108 +1,118 @@
-"""Pure request/response logic for the internal RSL HTTP service.
-
-The service is deliberately thin: it validates transport-level input, maps the
-operator status vocabulary to the canonical engine vocabulary, and returns the
-canonical engine response. It never fits, trains, or reads sensor values.
-"""
+"""FastAPI application untuk RSL V2.1 inference service."""
 
 from __future__ import annotations
 
-import math
 import os
-from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
-from tofusense_rsl import __version__ as ENGINE_VERSION
-from tofusense_rsl import default_reference, estimate_rsl
-from tofusense_rsl.engine import RSLInputError
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
-REFERENCE_VERSION = "v2.3-frozen-2026-11-04"
-OPERATOR_TO_ENGINE_STATUS = {
-    "NOT_SPOILED": "NOT_SPOILED",
-    "SPOILED": "SAMPLE_REPORTED_SPOILED",
-    "SAMPLE_REPORTED_SPOILED": "SAMPLE_REPORTED_SPOILED",
-}
-SUPPORTED_STORAGE = ("DRY", "WATER", "AMBIENT", "UNKNOWN")
-
-
-class RequestError(ValueError):
-    """A client-visible validation error with a stable code."""
-
-    def __init__(self, message: str, code: str = "INVALID_REQUEST"):
-        super().__init__(message)
-        self.code = code
+from engine import (
+    ARTIFACT_PATH,
+    EXPECTED_SHA256,
+    build_orchestrator,
+    estimate,
+    sha256_file,
+    verify_artifact,
+)
 
 
-def _metadata() -> dict[str, Any]:
-    reference = default_reference()
-    return {
-        "engineVersion": ENGINE_VERSION,
-        "referenceVersion": REFERENCE_VERSION,
-        "referencePopulation": reference.n_reference_sessions,
-        "referenceStorageCondition": "DRY",
-        "elapsedOrigin": "EXPERIMENT_STARTED_AT",
-        "researchStatus": reference.research_status,
-        "tvocContribution": "NOT_ESTABLISHED",
-    }
+def create_app(
+    *,
+    artifact_path: Path = ARTIFACT_PATH,
+    expected_sha256: str = EXPECTED_SHA256,
+    db_path: Path | None = None,
+    orchestrator=None,
+) -> FastAPI:
+    """Factory untuk membuat instance FastAPI app dengan fail-closed artifact check."""
+    # Verifikasi langsung saat pembuatan app
+    verify_artifact(artifact_path, expected_sha256)
 
+    orch = orchestrator or build_orchestrator(
+        artifact_path=artifact_path,
+        expected_sha256=expected_sha256,
+        db_path=db_path,
+    )
 
-def health_payload() -> dict[str, Any]:
-    return {
-        "status": "ok",
-        "service": "tofusense-rsl",
-        "engineVersion": ENGINE_VERSION,
-        "referenceVersion": REFERENCE_VERSION,
-        "referencePopulation": 3,
-        "referenceStorageCondition": "DRY",
-        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-    }
+    app = FastAPI(title="TofuSense RSL V2.1 Service")
 
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(_request: Request, exc: HTTPException):
+        content = exc.detail if isinstance(exc.detail, dict) else {"error": {"code": "HTTP_ERROR", "message": str(exc.detail)}}
+        return JSONResponse(status_code=exc.status_code, content=content)
 
-def version_payload() -> dict[str, Any]:
-    return {
-        "service": "tofusense-rsl",
-        "engineVersion": ENGINE_VERSION,
-        "referenceVersion": REFERENCE_VERSION,
-        "metadata": _metadata(),
-    }
+    @app.get("/health")
+    async def health():
+        sha = sha256_file(artifact_path)
+        return {
+            "ok": True,
+            "model_artifact_id": f"{artifact_path.name}:{sha[:12]}",
+            "sha256": sha,
+            "domain_max_hours": 42.8888,
+        }
 
+    @app.post("/estimate")
+    async def run_estimate(request: Request):
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": {"code": "INVALID_REQUEST", "message": "Invalid JSON body"}},
+            )
 
-def estimate_payload(body: Any) -> dict[str, Any]:
-    if not isinstance(body, dict):
-        raise RequestError("body must be a JSON object")
-    elapsed = body.get("elapsedHours")
-    if elapsed is None:
-        elapsed = body.get("elapsed_h")
-    try:
-        elapsed_value = float(elapsed)
-    except (TypeError, ValueError) as exc:
-        raise RequestError("elapsedHours must be numeric", "INVALID_ELAPSED_TIME") from exc
-    if not math.isfinite(elapsed_value):
-        raise RequestError("elapsedHours must be finite", "INVALID_ELAPSED_TIME")
+        if not isinstance(body, dict):
+            raise HTTPException(
+                status_code=400,
+                detail={"error": {"code": "INVALID_REQUEST", "message": "Body must be a JSON object"}},
+            )
 
-    raw_status = body.get("sampleStatus", body.get("sample_status"))
-    if raw_status not in OPERATOR_TO_ENGINE_STATUS:
-        raise RequestError(
-            "sampleStatus must be NOT_SPOILED or SPOILED", "INVALID_SAMPLE_STATUS"
+        session_id = body.get("session_id")
+        if not isinstance(session_id, str) or not session_id.strip():
+            raise HTTPException(
+                status_code=400,
+                detail={"error": {"code": "INVALID_REQUEST", "message": "session_id must be a non-empty string"}},
+            )
+
+        for numeric_field in ("temp_c", "humid_pct"):
+            val = body.get(numeric_field)
+            if val is not None and (not isinstance(val, (int, float)) or isinstance(val, bool)):
+                raise HTTPException(
+                    status_code=400,
+                    detail={"error": {"code": "INVALID_REQUEST", "message": f"{numeric_field} must be numeric"}},
+                )
+
+        esp32_conn = body.get("esp32_connected")
+        if esp32_conn is not None and not isinstance(esp32_conn, bool):
+            raise HTTPException(
+                status_code=400,
+                detail={"error": {"code": "INVALID_REQUEST", "message": "esp32_connected must be a boolean"}},
+            )
+
+        monitoring_start_at = body.get("monitoring_start_at")
+        current_timestamp = body.get("current_timestamp")
+        temp_c = float(body["temp_c"]) if body.get("temp_c") is not None else None
+        humid_pct = float(body["humid_pct"]) if body.get("humid_pct") is not None else None
+        connected = bool(esp32_conn) if esp32_conn is not None else True
+
+        result = await run_in_threadpool(
+            estimate,
+            orch,
+            session_id=session_id,
+            monitoring_start_at=monitoring_start_at,
+            current_timestamp=current_timestamp,
+            temp_c=temp_c,
+            humid_pct=humid_pct,
+            esp32_connected=connected,
         )
-    status = OPERATOR_TO_ENGINE_STATUS[raw_status]
+        return result
 
-    condition = body.get("storageCondition", body.get("storage_condition", "UNKNOWN"))
-    if not isinstance(condition, str) or condition not in SUPPORTED_STORAGE:
-        raise RequestError(
-            "storageCondition must be DRY, WATER, AMBIENT, or UNKNOWN",
-            "INVALID_STORAGE_CONDITION",
-        )
+    return app
 
-    try:
-        result = estimate_rsl(
-            elapsed_value, sample_status=status, storage_condition=condition
-        )
-    except RSLInputError as exc:
-        raise RequestError(str(exc), "INVALID_INPUT") from exc
 
-    return {
-        "success": True,
-        "data": result,
-        "metadata": _metadata(),
-    }
+_db_env = os.environ.get("RSL_DB_PATH")
+_db_path = Path(_db_env) if _db_env else None
+app = create_app(db_path=_db_path)

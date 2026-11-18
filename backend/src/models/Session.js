@@ -10,49 +10,9 @@ const sessionSchema = new mongoose.Schema(
   {
     seq: { type: Number, required: true, unique: true },
     sesiCode: { type: String, required: true, unique: true }, // CH-001 (ID sesi, berurutan)
-    experimentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Experiment',
-      default: null,
-      index: true,
-    },
     chamberId: { type: Number, required: true, index: true },
     status: { type: String, enum: ['aktif', 'selesai'], default: 'aktif' },
-    // Operator-provided sample status. UNKNOWN is a real state: it must never be
-    // silently converted to NOT_SPOILED and it must not produce a normal RSL.
-    sampleStatus: {
-      type: String,
-      enum: ['UNKNOWN', 'NOT_SPOILED', 'SPOILED'],
-      default: 'UNKNOWN',
-    },
-    sampleStatusUpdatedAt: { type: Date, default: null },
-    sampleStatusUpdatedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
-    // Small audit trail; keeps the latest state above as the fast read path.
-    sampleStatusHistory: {
-      type: [
-        {
-          _id: false,
-          status: { type: String, enum: ['UNKNOWN', 'NOT_SPOILED', 'SPOILED'] },
-          at: { type: Date, required: true },
-          by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-        },
-      ],
-      default: [],
-    },
-    // Frozen RSL reference is DRY-only. UNKNOWN/WATER must return an explicit
-    // unavailable result rather than borrowing the dry reference.
-    storageCondition: {
-      type: String,
-      enum: ['DRY', 'WATER', 'UNKNOWN'],
-      default: 'DRY',
-    },
-    // First accepted reading time for chamber audit. Null until the first
-    // reading arrives; new experiment sessions are created before any data.
-    masuk: { type: Date, default: null },
+    masuk: { type: Date, required: true },
     selesai: { type: Date, default: null },
     tvoc_awal: { type: Number, default: null },
     suhu_awal: { type: Number, default: null },
@@ -61,6 +21,12 @@ const sessionSchema = new mongoose.Schema(
     shelfLifeAwal: { type: Number, default: null }, // prediksi terbaru (jam)
     prediksiDibuat: { type: Date, default: null }, // t0 prediksi terbaru
     modelUsed: { type: String, default: null },
+    rslDomain: { type: String, enum: ['IN_DOMAIN', 'OUT_OF_DOMAIN', 'LEGACY', null], default: null },
+    rslState: { type: String, default: null },
+    rslPi80Low: { type: Number, default: null },
+    rslPi80High: { type: Number, default: null },
+    rslCalculatedAt: { type: Date, default: null },
+    legacy: { type: Boolean, default: false },
     readingCount: { type: Number, default: 0 },
     statusAkhir: { type: String, default: null }, // status saat sesi ditutup
     sisaAkhirJam: { type: Number, default: null },
@@ -79,18 +45,6 @@ const sessionSchema = new mongoose.Schema(
 sessionSchema.index(
   { chamberId: 1 },
   { unique: true, partialFilterExpression: { status: 'aktif' }, name: 'uniq_active_per_chamber' }
-);
-// Access pattern for experiment-aware ingestion and API reads.
-sessionSchema.index({ experimentId: 1, chamberId: 1, status: 1 });
-// One active session per chamber within one experiment. Historical sessions
-// (experimentId null) are excluded by the partial filter.
-sessionSchema.index(
-  { experimentId: 1, chamberId: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { status: 'aktif', experimentId: { $type: 'objectId' } },
-    name: 'uniq_active_experiment_chamber',
-  }
 );
 sessionSchema.index({ masuk: -1 });
 

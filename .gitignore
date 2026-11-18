@@ -20,13 +20,9 @@ Thumbs.db
 
 # PlatformIO
 firmware/.pio/
-firmware/**/.pio/
 firmware/.vscode/
 
 # python (ml-service milik anggota ML)
 __pycache__/
 *.pyc
 .venv/
-
-# device secrets (wifi, apps script, mqtt)
-firmware/**/config_secrets.h

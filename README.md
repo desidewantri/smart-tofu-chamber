@@ -4,7 +4,7 @@ Aplikasi monitoring dan prediksi shelf-life tahu secara real-time (Capstone C-25
 Sensor ESP32 (AGS10 + SHT31) → MQTT → Backend (Express + MongoDB) → Dashboard (Next.js).
 
 > Folder `ml-service/` (FastAPI, Random Forest + LSTM) dikerjakan anggota tim ML dan **tidak ada** di sini.
-> Sampai ml-service siap, backend memakai **model tiruan** (`ML_MODE=mock`) agar seluruh alur bisa dicoba. `ML_MODE=off` mematikan prediksi ML tanpa menghentikan ingest sensor atau RSL.
+> Sampai ml-service siap, backend memakai **model tiruan** (`ML_MODE=mock`) agar seluruh alur bisa dicoba.
 
 ```
 smart-tofu-chamber/
@@ -88,95 +88,26 @@ Tanpa `GOOGLE_CLIENT_ID`, tombol Google disembunyikan (di mode demo tetap muncul
 
 Bila ESP32 mencatat data ke Google Sheet, backend bisa membacanya otomatis (tanpa MQTT, sensor boleh di mana saja).
 
-1. Sheet: skema baru `received_at, sample_id, sampled_at, temp1, humid1, tvoc1, temp2, humid2, tvoc2, vbat`, atau skema lama `timestamp, temp1, humid1, tvoc1, temp2, humid2, tvoc2`. Kolom 1 = Chamber 1, kolom 2 = Chamber 2; kolom lain diabaikan.
+1. Sheet: kolom `timestamp, temp1, humid1, tvoc1, temp2, humid2, tvoc2` (kolom 1 = Chamber 1, kolom 2 = Chamber 2; kolom lain diabaikan).
 2. Bagikan Sheet: **Share > General access > Anyone with the link > Viewer** (atau File > Share > Publish to web > CSV).
-3. Isi `SHEET_URL=` di `backend/.env` dengan link tab yang benar. **Sertakan `gid`** (mis. `...#gid=123`): tanpa gid Google mengekspor tab pertama, yang bisa saja tab sesi historis. Backend mencetak peringatan bila `gid` tidak ada.
+3. Isi `SHEET_URL=` di `backend/.env` dengan link Sheet tersebut (link biasa dari address bar boleh), lalu jalankan ulang backend.
 4. Terminal backend menampilkan `[sheet] N data baru diimpor dari Google Sheet`. Sheet dicek ulang tiap `SHEET_POLL_SEC` detik (default 60).
 
 Baterai alat (opsional): tambahkan kolom `battery` (persen, mis. `72` atau `72%`) di Sheet, atau field `"battery": 72` pada pesan MQTT/HTTP. Nilainya tampil di bilah atas ("Baterai Alat"); di bawah 20% muncul notifikasi lonceng dan WhatsApp (sekali, lalu aktif lagi setelah baterai diisi di atas 30%).
 
-Catatan: tekan "Tahu Sudah Keluar" pada sesi contoh dulu agar data Sheet masuk ke sesi baru. MQTT dan Sheet boleh aktif bersamaan: setiap kejadian punya `eventId` (`<sample_id>-ch<n>`) dan hanya disimpan sekali (lihat docs/data_contract.md).
+Catatan: tekan "Tahu Sudah Keluar" pada sesi contoh dulu agar data Sheet masuk ke sesi baru. Jangan pakai MQTT dan Sheet untuk chamber yang sama sekaligus (data akan dobel).
 Impor ulang dari awal: `docker exec stc-mongo mongosh smart_tofu_chamber --quiet --eval "db.importcursors.deleteMany({})"`.
 
 ## MQTT di server (ESP32 kirim ke MQTT dan Google Sheet)
 
-ESP32 (`firmware/toscha_esp32_bench/toscha_esp32_bench.ino`) mengirim setiap 5 menit ke **MQTT dan Google Sheet**.
-MQTT adalah jalur utama; Sheet adalah arsip dan jalur cadangan. Keduanya memakai `sample_id` yang sama,
-sehingga backend menyimpan satu dokumen per kejadian (`eventId = <sample_id>-ch<n>`) walaupun data datang
-dari dua jalur. `SHEET_MODE=fallback` tetap disarankan untuk data lama yang belum punya `sample_id`.
+ESP32 (`firmware/toscha_esp32/toscha_esp32.ino`) mengirim setiap 5 menit ke **MQTT dan Google Sheet**.
+Backend memakai data MQTT; baris Sheet hanya diimpor bila data MQTT untuk chamber dan waktu itu tidak ada
+(`SHEET_MODE=fallback` di `backend/.env`). Sheet tetap lengkap untuk tim.
 
 - Broker: `infra/mosquitto/mosquitto.prod.conf` (wajib login, menyimpan pesan saat backend restart), port 1883.
-- Detail broker yang sudah ada (dev vs server, variabel, cara verifikasi): **[docs/mqtt.md](docs/mqtt.md)**.
 - File password: `deploy/mosquitto-passwd` (dibuat di server, tidak masuk git). User: `esp32` dan `backend`.
 - Kolom `source` di `sensorreadings` mencatat jalur data: `mqtt`, `sheet` (cadangan), atau `http`.
 - Cek: `docker compose -f docker-compose.prod.yml logs -f backend` → `[mqtt] terhubung`, `[mqtt] smartchamber/sensor/1 -> CH-...`.
-
-## Eksperimen (dua chamber, satu batch)
-
-1. Login, lalu `POST /api/experiments` dengan body `{"label":"Sesi 5 - IoT","storageCondition":"DRY"}`.
-2. Backend membuat **satu** experiment dan **dua** sesi chamber dengan `experimentId` yang sama. `Experiment.startedAt` menjadi acuan elapsed time/RSL; `Session.masuk` baru terisi saat reading pertama.
-3. Sensor hanya masuk ke sesi eksperimen aktif. Tanpa eksperimen aktif, MQTT/HTTP/Sheet tidak membuat sesi baru.
-4. Stop dengan `POST /api/experiments/:id/stop`; kedua sesi ditutup dengan `endedAt` yang sama.
-5. Jika start ditolak `409` karena sesi lama masih aktif, tutup sesi itu dulu. Sesi historis (mis. CH-009/CH-010) tidak digabung otomatis.
-
-Detail endpoint dan contoh `curl`: [docs/api/README.md](docs/api/README.md).
-
-## SSA / RSL (statistik, terpisah dari ML)
-
-Mesin RSL v2.3 adalah kapabilitas statistik terpisah dari `ML_MODE=mock/live`.
-Ia **tidak** memakai TVOC, suhu, atau RH sebagai prediktor. Inputnya hanya waktu
-berjalan sejak `Experiment.startedAt`, status sampel yang diisi operator, dan
-kondisi penyimpanan `DRY`.
-
-- **M1** — empirical interval envelope; **hasil utama** di dashboard. Ini rentang
-  historis, **bukan confidence interval** dan bukan jaminan keamanan individu.
-- **M2** — Turnbull NPMLE conditional support; analisis pendukung. Massa di dalam
-  support tidak teridentifikasi.
-- **M3** — Weibull A0 comparator; eksploratif dan tidak stabil dengan tiga endpoint.
-
-Status sampel per chamber harus diisi operator (`NOT_SPOILED` / `SPOILED`).
-`UNKNOWN` tidak pernah dianggap `NOT_SPOILED` dan tidak menghasilkan RSL normal.
-Status dapat diubah lewat dashboard atau
-`PATCH /api/experiments/:id/sessions/:sessionId/sample-status`.
-
-Saat eksperimen dihentikan, backend menyimpan **snapshot RSL final** untuk kedua
-chamber dalam koleksi `rslsnapshots`. Snapshot memakai satu `endedAt` bersama,
-menyimpan nilai M1 presisi penuh, display rounding, M2/M3, status sample, dan
-alasan unavailable. Snapshot tidak dihitung ulang saat halaman riwayat dibuka.
-Notifikasi lonceng dan WhatsApp untuk RSL memakai **batas bawah M1** yang sama
-dengan dashboard; tidak ada countdown mock atau fallback angka.
-
-Eksperimen menyimpan status kelengkapan snapshot (`rslSnapshotStatus` PENDING /
-COMPLETE) dan status finalisasi terpisah (`finalizationStatus` PENDING /
-COMPLETE). Jika satu atau kedua snapshot gagal ditulis, eksperimen tetap ditutup
-dengan `endedAt` asli dan status PENDING. Worker rekonsiliasi mengisi snapshot yang
-hilang menggunakan `endedAt` asli, tidak menimpa snapshot yang sudah ada, lalu
-menandai COMPLETE setelah dua dokumen terverifikasi.
-
-Finalisasi hanya COMPLETE jika eksperimen sudah ditutup, kedua sesi chamber sudah
-ditutup, dan kedua snapshot kanonik sudah ada. Sesi yang masih aktif karena
-kegagalan penutupan akan ditutup oleh worker menggunakan `endedAt` asli; sesi yang
-sudah sah ditutup lebih awal mempertahankan timestamp lamanya. Riwayat menampilkan
-“Snapshot RSL sedang dipulihkan” atau “Finalisasi eksperimen sedang dipulihkan”
-sampai proses selesai.
-
-Runtime: `rsl_service/` (Python internal, port 8001) memuat `rsl_engine/` yang
-berisi salinan byte-identik modul kanonik v2.3. Tidak ada training/refit saat
-runtime. Di Docker Compose produksi, service ini internal (`expose`, bukan
-`ports`) dan backend memanggil `http://rsl:8001`.
-
-```bash
-# lokal
-PYTHONPATH=rsl_engine/src python3 -m rsl_service.server
-curl -s localhost:8001/health
-
-# backend lokal
-export RSL_SERVICE_URL=http://127.0.0.1:8001
-```
-
-Batas ilmiah: tiga sesi referensi kering (S3/S4/S5), S1/S2 water-storage
-dikecualikan, dan kontribusi TVOC belum terbukti. Lihat
-[`rsl_engine/docs/MODEL_LIMITATIONS.md`](rsl_engine/docs/MODEL_LIMITATIONS.md).
 
 ## Server (VPS) dengan HTTPS
 
@@ -194,6 +125,16 @@ Aplikasi dan API memakai satu alamat: `https://DOMAIN` (frontend) dan `https://D
 7. Buka `https://DOMAIN`, daftar akun tim. Setelah semua anggota punya akun, ubah `ALLOW_REGISTRATION=false` lalu jalankan ulang langkah 5.
 
 Memperbarui aplikasi: `git pull` lalu ulangi langkah 5. Jangan jalankan `npm run seed` di server (menghapus data).
+
+### Model Riset RSL V2.1 (FastAPI Microservice)
+TOSCHA mengintegrasikan model Bayesian Weibull time-only (RSL V2.1) melalui container terpisah `rsl`:
+- Variabel lingkungan di `backend/.env`:
+  - `RSL_MODE=live` untuk mengaktifkan estimasi model riset V2.1 (default `off`).
+  - `RSL_SERVICE_URL=http://rsl:8001` (diatur otomatis oleh compose).
+- Migrasi sesi historis (tandai `mock_legacy`):
+  - Jalankan di container backend: `docker exec smart-tofu-chamber-backend-1 node scripts/migrate-legacy-rsl.js --apply`
+- Rollback darurat:
+  - Ubah `RSL_MODE=off` di `backend/.env` lalu `docker compose -f docker-compose.prod.yml up -d backend`. Dashboard akan kembali ke model mock lama tanpa menghentikan monitoring sensor.
 
 ## Aplikasi di HP (PWA)
 TOSCHA bisa dipasang di HP dan laptop seperti aplikasi, tanpa Play Store atau App Store.
@@ -220,7 +161,7 @@ Belum punya token? Isi `WA_DRY_RUN=true` di `backend/.env`: pesan tidak dikirim,
 Catatan: Fonnte adalah gateway tidak resmi. Paket gratisnya cukup untuk demo (sekitar 1.000 pesan per bulan, dengan watermark), tetapi nomor pengirim bisa diblokir WhatsApp bila dipakai untuk spam. Untuk penggunaan jangka panjang, ganti ke WhatsApp Cloud API resmi; cukup ubah `backend/src/services/whatsappService.js`.
 
 ## Konfigurasi
-- `backend/.env`: port, URL MongoDB/MQTT, `JWT_SECRET`, `DEVICE_API_KEY`, `ML_MODE`, `ML_SERVICE_URL`, `RSL_SERVICE_URL`, `RSL_TIMEOUT_MS`, `RSL_SNAPSHOT_RECOVERY_INTERVAL_SEC`. Contoh di `.env.example`.
+- `backend/.env`: port, URL MongoDB/MQTT, `JWT_SECRET`, `DEVICE_API_KEY`, `ML_MODE`, `ML_SERVICE_URL`. Contoh di `.env.example`.
 - `frontend/.env.local`: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_USE_MOCK`. Ubah env lalu restart `npm run dev`.
 
 ## Menyambungkan ml-service (bagian teman)
@@ -229,23 +170,19 @@ Catatan: Fonnte adalah gateway tidak resmi. Paket gratisnya cukup untuk demo (se
 3. Cek `GET http://localhost:5000/api/health`. Dashboard tidak menampilkan nama model; modelnya hanya tercatat di data prediksi.
 
 ## Menyambungkan ESP32
-1. Copy `firmware/toscha_esp32_bench/config_secrets.example.h` menjadi `config_secrets.h`, isi WiFi,
-   `SCRIPT_URL` + `API_KEY` (Apps Script), dan kredensial MQTT. File ini gitignored.
-2. Buka `firmware/toscha_esp32_bench/toscha_esp32_bench.ino` di Arduino IDE (atau
-   `python3 -m platformio run -d firmware/toscha_esp32_bench` untuk compile check) lalu Upload.
-3. Pastikan firewall mengizinkan port 1883. Untuk TLS gunakan port 8883 + `MQTT_USE_TLS 1` + `MQTT_CA_CERT`.
+1. Edit `firmware/include/config.h`: WiFi, `MQTT_HOST` (IP komputer yang menjalankan Mosquitto, bukan `localhost`), `CHAMBER_ID`.
+2. Buka `firmware/` dengan PlatformIO (VS Code) lalu Upload.
+3. Pastikan firewall komputer mengizinkan port 1883.
 
 ## Tes
 ```bash
-cd backend && npm test        # 193 tes unit (identitas, dedup, eksperimen, importer, Sheet, MQTT, RSL, firmware contract, dll.)
-PYTHONPATH=rsl_engine/src python3 -m pytest rsl_engine/tests rsl_service/tests -q   # 88 tes engine + service
+cd backend && npm test        # 19 tes unit (zona status, validasi payload, ML client, analisis)
 ```
 
 ## Yang sudah dan belum diverifikasi
 Diuji di lingkungan pengembangan saya:
-- Backend: 193 tes unit lulus; rute tanpa database dicek (health, 401, validasi 400).
-- Frontend: `next build` lulus; semua halaman dibuka di browser headless tanpa error konsol; alur login, tutup sesi, tab Analysis, RSL M1/M2/M3, status sampel, tampilan mobile dicek.
-- RSL: 75 tes engine + 11 tes service + 2 tes baseline beku; paritas numerik dengan v2.3 dan API lokal diuji end-to-end.
+- Backend: 19 tes unit lulus; rute tanpa database dicek (health, 401, validasi 400).
+- Frontend: `next build` lulus; semua halaman dibuka di browser headless (mode demo) tanpa error konsol; alur login, tutup sesi, tab Analysis, tampilan mobile dicek.
 
 **Belum teruji** (tidak bisa dijalankan di lingkungan saya, jadi mungkin perlu penyesuaian kecil saat pertama dijalankan):
 - Backend terhubung ke MongoDB asli, `npm run seed`, alur MQTT lewat Mosquitto, dan `npm run simulate`.
@@ -258,8 +195,6 @@ Bila ada galat saat menjalankan, kirimkan pesan galatnya.
 - Prediksi dari model tiruan **bukan** hasil ML. Angka koreksinya asumsi.
 - Hubungan TVOC ↔ jumlah bakteri pada tahu belum tervalidasi oleh jurnal yang kami temukan. Batas parameter sensor (Settings) dan asumsi Biaya & Manfaat adalah titik awal yang harus disesuaikan dengan data uji lab.
 - Teks di Analysis menyatakan bahwa TVOC/suhu/RH adalah parameter pendukung prediksi, bukan pengukuran langsung kondisi mikrobiologis.
-- RSL M1 adalah **empirical interval envelope** dari tiga sesi referensi kering. Jangan menyebutnya confidence interval, prediksi probabilistik, atau jaminan keamanan pangan.
-- M2/M3 adalah analisis pendukung. M2 bergantung pada estimator; M3 hanya komparator eksploratif. Tidak ada angka sensor yang menjadi input RSL.
 
 ## Masalah umum
 | Gejala | Solusi |

@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/context/I18nContext';
 import { classifyShelfLife } from '@/lib/utils';
 import { getLocale } from '@/lib/locale';
+import { RESEARCH_RSL_MODE } from '@/lib/features';
 
 function greetingKey(hour) {
   if (hour >= 4 && hour < 11) return 'Selamat pagi';
@@ -40,23 +41,14 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
   const now = new Date(fetchedAt || Date.now());
 
   const count = { segera: 0, tidak: 0 };
-  let waiting = 0;
-  const rslCards = active.filter(({ rsl }) => rsl);
-  const rslWithRange = rslCards.filter(({ rsl }) =>
-    (rsl.status === 'AVAILABLE' || rsl.status === 'REFERENCE_ONLY') && rsl.primary
-  ).length;
-  const rslUnavailable = rslCards.length - rslWithRange;
-  active.forEach(({ session, rsl }) => {
-    if (rsl) return;
-    const seconds = session?.sisaDetik;
-    if (seconds === null || seconds === undefined || Number.isNaN(Number(seconds))) {
-      waiting += 1;
-      return;
-    }
-    const st = classifyShelfLife(seconds / 3600, zones);
-    if (st === 'Segera Konsumsi') count.segera += 1;
-    if (st === 'Tidak Layak Konsumsi') count.tidak += 1;
-  });
+  if (!RESEARCH_RSL_MODE) {
+    active.forEach(({ session }) => {
+      if (session?.sisaDetik === null || session?.sisaDetik === undefined) return;
+      const st = classifyShelfLife(session.sisaDetik / 3600, zones);
+      if (st === 'Segera Konsumsi') count.segera += 1;
+      if (st === 'Tidak Layak Konsumsi') count.tidak += 1;
+    });
+  }
   const chambers = [...active, ...idle].map((x) => x.chamber).filter((c) => c.enabled);
   const offline = chambers.filter((c) => !c.connected).length;
 
@@ -65,14 +57,9 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
   if (count.tidak) parts.push(t('{n} chamber sudah tidak layak dikonsumsi', { n: count.tidak }));
   let summary;
   if (!active.length) summary = t('Belum ada tahu yang sedang disimpan.');
-  else if (rslCards.length) {
-    summary = rslUnavailable
-      ? t('{n} chamber memiliki rentang RSL historis; {m} belum tersedia.', { n: rslWithRange, m: rslUnavailable })
-      : t('{n} chamber memiliki rentang RSL historis.', { n: rslWithRange });
-  } else if (!parts.length && waiting) {
-    summary = t('Menunggu prediksi pertama untuk {n} chamber.', { n: waiting });
-  } else if (!parts.length) summary = t('Semua tahu di chamber masih layak dikonsumsi.');
-  else summary = `${t('Hari ini')} ${parts.join(` ${t('dan')} `)}.${waiting ? ` ${t('{n} chamber menunggu prediksi.', { n: waiting })}` : ''}`;
+  else if (RESEARCH_RSL_MODE) summary = t('{n} chamber sedang dalam pemantauan.', { n: active.length });
+  else if (!parts.length) summary = t('Semua tahu di chamber masih layak dikonsumsi.');
+  else summary = `${t('Hari ini')} ${parts.join(` ${t('dan')} `)}.`;
   const sensor = offline ? t('{n} sensor terputus.', { n: offline }) : t('Semua sensor terhubung.');
 
   const date = now.toLocaleDateString(getLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -81,7 +68,7 @@ export default function GreetingCard({ active, idle, zones, fetchedAt }) {
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-slate-200/70 border-l-[5px] border-l-brand-600 bg-white px-4 py-3.5 shadow-card sm:flex-row sm:items-center sm:gap-5 sm:px-5 sm:py-3">
       <div className="w-full min-w-0 sm:w-auto sm:flex-1">
-        <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-brand-700">
+        <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-brand-600">
           {date} · {time}
         </p>
         <h2 className="mt-0.5 text-[17px] font-extrabold text-brand-900">

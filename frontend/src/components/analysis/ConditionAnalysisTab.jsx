@@ -19,8 +19,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { EmptyState, ErrorState, Loading } from '@/components/common/States';
 import ShelfLifeChart from '@/components/dashboard/ShelfLifeChart';
 import SensorHistoryChart from './SensorHistoryChart';
-import RslAnalysisPanel from './RslAnalysisPanel';
-import RslModelComparison from '@/components/rsl/RslModelComparison';
+import { RESEARCH_RSL_MODE } from '@/lib/features';
 
 const SENSORS = [
   { key: 'suhu', label: 'Suhu', unit: '°C', yLabel: 'Suhu (°C)', color: '#f97316', decimals: 1, minPad: 1 },
@@ -56,27 +55,11 @@ function whenText(ms, roundToHour = true) {
 
 function recommendations(status, live, untilDay) {
   if (!live) return ['Sesi ini sudah selesai. Rekomendasi muncul lagi saat ada tahu baru di chamber.'];
-  const general = [
+  return [
+    'Simpan tahu di wadah bersih dan sejuk; jaga kebersihan chamber dan peralatan.',
     'Jaga suhu ruang tetap stabil — kenaikan suhu mempercepat penurunan kualitas.',
-    'Pastikan chamber tertutup rapat agar pembacaan TVOC akurat.',
+    'Pastikan chamber tertutup rapat agar pembacaan sensor lingkungan stabil.',
   ];
-  if (!untilDay) {
-    return [
-      'Gunakan rentang historis sebagai bahan pertimbangan, bukan jaminan waktu aman.',
-      'Perbarui status sampel secara eksplisit setelah pemeriksaan operator.',
-      ...general,
-    ];
-  }
-  if (status === STATUS.TIDAK) {
-    return [
-      'Tahu sudah tidak layak dikonsumsi; keluarkan dari chamber lalu tekan Tahu Sudah Keluar.',
-      'Bersihkan wadah chamber sebelum dipakai untuk tahu berikutnya.',
-    ];
-  }
-  if (status === STATUS.SEGERA) {
-    return ['Tahu sebaiknya segera dikonsumsi atau dijual.', { text: 'Rencanakan sebelum {when}.', when: untilDay }, ...general];
-  }
-  return ['Tahu masih layak; belum perlu tindakan.', { text: 'Rencanakan konsumsi atau penjualan sebelum {when}.', when: untilDay }, ...general];
 }
 
 function Kpi({ label, children, className }) {
@@ -92,36 +75,28 @@ function Body({ d, zones, fetchedAt }) {
   const { t } = useI18n();
   const seconds = useCountdown(d.remainingSeconds, fetchedAt);
   const live = d.session?.status === 'aktif';
-  const unavailable = seconds === null || seconds === undefined || Number.isNaN(Number(seconds));
-  const status = live ? (unavailable ? null : classifyShelfLife(seconds / 3600, zones)) : d.status;
-  const rsl = d.rsl;
-  const rslAvailable = rsl?.status === 'AVAILABLE' && rsl.primary;
-  const rslReferenceOnly = rsl?.status === 'REFERENCE_ONLY' && rsl.primary;
-  const rslStatusLabel = rslAvailable
-    ? 'Rentang historis'
-    : rslReferenceOnly
-      ? 'Referensi historis'
-      : rsl?.reason === 'SAMPLE_STATUS_UNKNOWN'
-      ? 'Belum diverifikasi'
-      : rsl?.reason === 'SAMPLE_REPORTED_SPOILED'
-        ? 'Sampel dilaporkan rusak'
-        : rsl
-          ? 'Estimasi tidak tersedia'
-          : null;
-  const style = rslAvailable ? NEUTRAL_STYLE : STATUS_STYLES[status] || NEUTRAL_STYLE;
+  const isPreparing = live && (d.remainingSeconds === null || seconds === null);
+
+  let status = d.status;
+  if (live) {
+    if (isPreparing) {
+      status = '__neutral';
+    } else {
+      status = 'Layak Konsumsi';
+    }
+  }
+  const style = STATUS_STYLES[status] || NEUTRAL_STYLE;
+
   const nowMs = Date.now();
-  const startMs = new Date(d.session.experimentStartedAt || d.session.masuk || nowMs).getTime();
-  const masukMs = d.session.masuk ? new Date(d.session.masuk).getTime() : startMs;
+  const masukMs = new Date(d.session.masuk).getTime();
   const endMs = d.session.selesai ? new Date(d.session.selesai).getTime() : nowMs;
-  // Shared elapsed time for a new experiment uses Experiment.startedAt; the
-  // first-reading audit time remains the "masuk" label only.
-  const storedSec = Math.max(0, (endMs - startMs) / 1000);
+  const storedSec = Math.max(0, (endMs - masukMs) / 1000);
   const masuk = whenText(masukMs, false);
   // "Perkiraan Tidak Layak" = saat status berubah ke Tidak Layak Konsumsi (sisa umur < Batas Rawan).
-  const toTidakSec = unavailable ? null : seconds - zones.rawanHours * 3600;
-  const until = live && toTidakSec > 0 ? whenText(nowMs + toTidakSec * 1000) : null;
+  const toTidakSec = !isPreparing && seconds !== null ? seconds - zones.rawanHours * 3600 : null;
+  const until = live && toTidakSec !== null && toTidakSec > 0 ? whenText(nowMs + toTidakSec * 1000) : null;
   // Bila sudah lewat: kapan status pertama kali berubah ke Tidak Layak (prediksi pertama < Batas Rawan).
-  const firstBad = !until ? (d.trend || []).find((p) => p.shelfLife < zones.rawanHours) : null;
+  const firstBad = !until && !isPreparing ? (d.trend || []).find((p) => p.shelfLife < zones.rawanHours) : null;
   const passedAt = firstBad ? whenText(masukMs + firstBad.elapsedHours * 3600000) : null;
   const untilText = until ? `${until.day} ±${until.time}` : '';
   const q = d.dataQuality;
@@ -139,67 +114,41 @@ function Body({ d, zones, fetchedAt }) {
         <div className={cn('rounded-2xl border-2 px-4 py-3.5 shadow-card', style.card)}>
           <p className="text-xs font-semibold text-slate-500">{t('Status Saat Ini')}</p>
           <div className="mt-1.5">
-            {rslStatusLabel ? (
-              <StatusBadge status="__rsl">{t(rslStatusLabel)}</StatusBadge>
-            ) : (
-              <StatusBadge status={status}>{unavailable ? 'Menunggu prediksi' : undefined}</StatusBadge>
-            )}
+            <StatusBadge status={status}>
+              {isPreparing ? t('Menyiapkan') : live ? t('Memantau') : undefined}
+            </StatusBadge>
           </div>
           <p className="mt-1.5 text-xs text-slate-500">
             {t('Sesi')} {d.session.sesiCode} · {d.chamber?.name || `Chamber ${d.session.chamberId}`}
           </p>
         </div>
-        <Kpi label={t(rslAvailable ? 'Rentang historis tersisa' : rslReferenceOnly ? 'Referensi historis' : 'Perkiraan Sisa Umur')}>
-          {rslAvailable || rslReferenceOnly ? (
+        <Kpi label={t('Perkiraan Sisa Umur')}>
+          <p className={cn('mt-1 text-2xl font-bold tabular-nums', isPreparing ? 'text-slate-500 text-lg' : style.text)}>
+            {isPreparing ? t('Menunggu prediksi…') : seconds === null ? '—' : formatHoursLeft(seconds)}
+          </p>
+        </Kpi>
+        <Kpi label={t('Perkiraan Batas Simpan')}>
+          {isPreparing ? (
+            <p className="mt-1 text-sm font-medium text-slate-500">{t('Mengumpulkan data awal…')}</p>
+          ) : until ? (
             <>
-              <p className={cn('mt-1 text-2xl font-bold tabular-nums', style.text)}>
-                {rsl.primary.display.lowerHours}–{rsl.primary.display.upperHours} {t('jam')}
-              </p>
-              <p className="text-[11px] text-slate-500">
-                {t('Batas penuh')} {rsl.primary.lowerHours.toFixed(2)}–{rsl.primary.upperHours.toFixed(2)} {t('jam')}
-              </p>
-              {rslReferenceOnly && (
-                <p className="text-[11px] text-amber-700">{t('Sampel belum diverifikasi; bukan prediksi individual.')}</p>
+              <p className="mt-1 text-lg font-bold capitalize text-slate-900">{until.day}</p>
+              <p className="text-xs text-slate-500">{t('sekitar pukul {t}', { t: until.time })}</p>
+            </>
+          ) : (
+            <>
+              <p className="mt-1 text-lg font-bold text-slate-900">{live ? (RESEARCH_RSL_MODE ? '—' : t('Sudah lewat')) : '—'}</p>
+              {passedAt && !RESEARCH_RSL_MODE && (
+                <p className="text-xs text-slate-500">{t('status berubah {d} ±{t}', { d: passedAt.day, t: passedAt.time })}</p>
               )}
             </>
-          ) : rsl ? (
-            <p className="mt-1 text-lg font-bold text-slate-700">{t(rslStatusLabel)}</p>
-          ) : (
-            <p className={cn('mt-1 text-2xl font-bold tabular-nums', style.text)}>{formatHoursLeft(seconds)}</p>
           )}
         </Kpi>
-        {rslAvailable ? (
-          <Kpi label={t('Batas atas historis')}>
-            <p className="mt-1 text-lg font-bold tabular-nums text-slate-900">
-              {rsl.primary.display.upperHours} {t('jam')}
-            </p>
-            <p className="text-xs text-slate-500">{t('Bukan waktu kedaluwarsa yang dijamin')}</p>
-          </Kpi>
-        ) : (
-          <Kpi label={t('Perkiraan Tidak Layak')}>
-            {until ? (
-              <>
-                <p className="mt-1 text-lg font-bold capitalize text-slate-900">{until.day}</p>
-                <p className="text-xs text-slate-500">{t('sekitar pukul {t}', { t: until.time })}</p>
-              </>
-            ) : (
-              <>
-                <p className="mt-1 text-lg font-bold text-slate-900">{live ? t('Sudah lewat') : '—'}</p>
-                {passedAt && (
-                  <p className="text-xs text-slate-500">{t('status berubah {d} ±{t}', { d: passedAt.day, t: passedAt.time })}</p>
-                )}
-              </>
-            )}
-          </Kpi>
-        )}
         <Kpi label={t('Lama Disimpan')}>
           <p className="mt-1 text-lg font-bold tabular-nums text-slate-900">{formatDurationLong(storedSec)}</p>
           <p className="text-xs text-slate-500">{t('masuk {d}, {t}', { d: masuk.day, t: masuk.time })}</p>
         </Kpi>
       </div>
-
-      <RslModelComparison rsl={rsl} />
-      <RslAnalysisPanel rsl={rsl} />
 
       {/* Grafik sensor sepanjang sesi */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -255,22 +204,27 @@ function Body({ d, zones, fetchedAt }) {
 
       {/* Tren + rekomendasi + kualitas data */}
       <div className="grid gap-4 xl:grid-cols-3">
-        {(d.trend?.length || 0) > 1 && (
-          <div className="card p-5 sm:p-6 xl:col-span-2">
-            <h3 className="font-semibold text-slate-900">{t('Tren Umur Simpan')}</h3>
-            <p className="mb-3 mt-1 text-xs text-slate-500">{t('Perkiraan sisa umur simpan dari waktu ke waktu sejak tahu masuk.')}</p>
-            <ShelfLifeChart data={d.trend} zones={zones} color={style.hex} height={280} />
-          </div>
-        )}
+        <div className="card p-5 sm:p-6 xl:col-span-2">
+          <h3 className="font-semibold text-slate-900">{t('Tren Umur Simpan')}</h3>
+          <p className="mb-3 mt-1 text-xs text-slate-500">{t('Perkiraan sisa umur simpan dari waktu ke waktu sejak tahu masuk.')}</p>
+          {d.trend.length > 1 ? (
+            <ShelfLifeChart data={d.trend} color={style.hex} height={280} />
+          ) : (
+            <EmptyState title="Belum cukup data prediksi" description="Grafik muncul setelah ada beberapa prediksi pada periode ini." />
+          )}
+        </div>
 
         <div className="space-y-4">
           <div className="card p-5">
             <h3 className="font-semibold text-slate-900">{t('Rekomendasi')}</h3>
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-slate-700">
-              {recommendations(rslAvailable ? null : status, live, rslAvailable ? null : untilText).map((r, i) => (
+              {recommendations(status, live, untilText).map((r, i) => (
                 <li key={i}>{typeof r === 'string' ? t(r) : t(r.text, { when: r.when })}</li>
               ))}
             </ul>
+            <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] leading-relaxed text-slate-500">
+              {t('Suhu, RH, dan TVOC adalah pemantauan lingkungan dan tidak memengaruhi estimasi RSL V2.1.')}
+            </p>
           </div>
 
           {q && (

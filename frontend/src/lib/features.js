@@ -7,3 +7,6 @@
  */
 export const SHOW_SENSOR_ZONES = false;
 export const SHOW_THRESHOLD_SETTINGS = false;
+
+export const RESEARCH_RSL_MODE = true;
+export const SHOW_COST_BENEFIT = true;
