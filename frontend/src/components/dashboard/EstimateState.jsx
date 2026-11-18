@@ -2,7 +2,6 @@
 
 import { useI18n } from '@/context/I18nContext';
 import { StatusBadge } from '@/components/common/StatusBadge';
-import { RESEARCH_RSL_MODE } from '@/lib/features';
 import ShelfLifeTimer from './ShelfLifeTimer';
 
 export default function EstimateState({ session, seconds, textClass = 'text-slate-900' }) {
@@ -62,13 +61,8 @@ export default function EstimateState({ session, seconds, textClass = 'text-slat
   }
 
   return (
-    <div className="flex flex-col gap-1.5 rounded-xl bg-white/80 px-3.5 py-2 ring-1 ring-inset ring-slate-200/70">
+    <div className="rounded-xl bg-white/80 px-3.5 py-2 ring-1 ring-inset ring-slate-200/70">
       {content}
-      {RESEARCH_RSL_MODE && (
-        <p className="border-t border-slate-100 pt-1 text-[10px] leading-tight text-slate-400">
-          {t('Perkiraan sisa waktu simpan berdasarkan kondisi dan pemodelan degradasi tahu.')}
-        </p>
-      )}
     </div>
   );
 }
