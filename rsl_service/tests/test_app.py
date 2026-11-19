@@ -14,7 +14,7 @@ def test_health_reports_frozen_sha(client):
     body = client.get("/health").json()
     assert body["ok"] is True
     assert body["sha256"] == EXPECTED_SHA256
-    assert body["domain_max_hours"] == 42.8888
+    assert body["domain_max_hours"] == 38.0
 
 def test_estimate_inside_domain(client):
     r = client.post("/estimate", json={

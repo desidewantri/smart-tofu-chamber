@@ -16,7 +16,7 @@ import { TICK, TOOLTIP_STYLE, xAxisLabel, yAxisLabel } from '@/lib/chart';
 /**
  * Grafik perkiraan sisa umur simpan model riset V2.1.
  * Sumbu X: waktu sejak tahu masuk (jam). Sumbu Y: sisa umur simpan (jam).
- * Garis putus-putus vertikal: Batas domain penelitian (42,9 jam) bila tercapai.
+ * Garis putus-putus vertikal: Batas pemantauan (38 jam) bila tercapai.
  */
 export default function ShelfLifeChart({
   data,
@@ -60,13 +60,13 @@ export default function ShelfLifeChart({
             labelFormatter={(v) => t('Jam ke-{n}', { n: Number(v).toFixed(1) })}
             contentStyle={TOOLTIP_STYLE}
           />
-          {xMax >= 42.8888 && (
+          {xMax >= 38 && (
             <ReferenceLine
-              x={42.8888}
+              x={38}
               stroke="#64748b"
               strokeDasharray="5 4"
               label={{
-                value: t('Batas domain penelitian (42,9 jam)'),
+                value: t('Batas pemantauan (38 jam)'),
                 position: 'insideTopRight',
                 fontSize: 10,
                 fill: '#64748b',

@@ -75,11 +75,14 @@ function Body({ d, zones, fetchedAt }) {
   const { t } = useI18n();
   const seconds = useCountdown(d.remainingSeconds, fetchedAt);
   const live = d.session?.status === 'aktif';
-  const isPreparing = live && (d.remainingSeconds === null || seconds === null);
+  const isOutOfDomain = d.session?.rslDomain === 'OUT_OF_DOMAIN';
+  const isPreparing = live && !isOutOfDomain && (d.remainingSeconds === null || seconds === null);
 
   let status = d.status;
   if (live) {
-    if (isPreparing) {
+    if (isOutOfDomain) {
+      status = 'Segera Konsumsi';
+    } else if (isPreparing) {
       status = '__neutral';
     } else {
       status = 'Layak Konsumsi';
@@ -115,7 +118,7 @@ function Body({ d, zones, fetchedAt }) {
           <p className="text-xs font-semibold text-slate-500">{t('Status Saat Ini')}</p>
           <div className="mt-1.5">
             <StatusBadge status={status}>
-              {isPreparing ? t('Menyiapkan') : live ? t('Memantau') : undefined}
+              {isOutOfDomain ? t('Batas Tercapai') : isPreparing ? t('Menyiapkan') : live ? t('Memantau') : undefined}
             </StatusBadge>
           </div>
           <p className="mt-1.5 text-xs text-slate-500">
@@ -123,12 +126,14 @@ function Body({ d, zones, fetchedAt }) {
           </p>
         </div>
         <Kpi label={t('Perkiraan Sisa Umur')}>
-          <p className={cn('mt-1 text-2xl font-bold tabular-nums', isPreparing ? 'text-slate-500 text-lg' : style.text)}>
-            {isPreparing ? t('Menunggu prediksi…') : seconds === null ? '—' : formatHoursLeft(seconds)}
+          <p className={cn('mt-1 text-2xl font-bold tabular-nums', isPreparing || isOutOfDomain ? 'text-slate-500 text-lg' : style.text)}>
+            {isOutOfDomain ? t('Batas 38 jam tercapai') : isPreparing ? t('Menunggu prediksi…') : seconds === null ? '—' : formatHoursLeft(seconds)}
           </p>
         </Kpi>
         <Kpi label={t('Perkiraan Batas Simpan')}>
-          {isPreparing ? (
+          {isOutOfDomain ? (
+            <p className="mt-1 text-sm font-medium text-amber-700">{t('Periksa kondisi fisik tahu')}</p>
+          ) : isPreparing ? (
             <p className="mt-1 text-sm font-medium text-slate-500">{t('Mengumpulkan data awal…')}</p>
           ) : until ? (
             <>

@@ -12,6 +12,7 @@ from starlette.concurrency import run_in_threadpool
 
 from engine import (
     ARTIFACT_PATH,
+    DOMAIN_MAX_HOURS,
     EXPECTED_SHA256,
     build_orchestrator,
     estimate,
@@ -51,7 +52,7 @@ def create_app(
             "ok": True,
             "model_artifact_id": f"{artifact_path.name}:{sha[:12]}",
             "sha256": sha,
-            "domain_max_hours": 42.8888,
+            "domain_max_hours": DOMAIN_MAX_HOURS,
         }
 
     @app.post("/estimate")
