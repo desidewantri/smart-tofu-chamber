@@ -27,13 +27,13 @@ export default function EstimateState({ session, seconds, textClass = 'text-slat
     content = (
       <div className="flex w-full flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[15px] font-bold text-slate-800">{t('Di Luar Domain')}</p>
+          <p className="text-[15px] font-bold text-slate-800">{t('Batas Pemantauan Tercapai')}</p>
           <p className="text-xs text-slate-500">
-            {t(`Durasi pemantauan ${elapsedH} jam melewati batas data penelitian (42,9 jam).`)}
+            {t(`Durasi pemantauan ${elapsedH} jam melewati batas 38 jam. Segera periksa kondisi fisik tahu.`)}
           </p>
         </div>
-        <StatusBadge status="__neutral" className="!px-3 !py-1 !text-[13px]">
-          {t('Di Luar Domain')}
+        <StatusBadge status="Segera Konsumsi" className="!px-3 !py-1 !text-[13px]">
+          {t('Batas Tercapai')}
         </StatusBadge>
       </div>
     );

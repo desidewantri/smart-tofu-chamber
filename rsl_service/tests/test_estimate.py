@@ -27,12 +27,12 @@ def test_below_min_window_returns_waiting_for_data(orch):
     assert r["research_display_eligible"] is False
 
 def test_at_boundary_is_inside_domain(orch):
-    r = at(orch, 42.8888)
+    r = at(orch, 38.0)
     assert r["domain_status"] == "AT_BOUNDARY"
     assert r["estimate"]["median_rsl_hours"] is not None
 
 def test_beyond_domain_hides_number(orch):
-    r = at(orch, 42.8889)
+    r = at(orch, 38.0001)
     assert r["failure_category"] == "OUT_OF_DOMAIN"
     assert r["estimate"]["median_rsl_hours"] is None
     assert r["research_display_eligible"] is False

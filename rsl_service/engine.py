@@ -27,6 +27,9 @@ EXPECTED_SHA256: str = os.environ.get(
     "5865af9ca9e8a85d677d6cc7fb9a91519ca0b5b96674dcddc67be0de8654c403",
 )
 
+# Batas domain operasional 38.0 jam (strictly monotonic sebelum tail flattening >38h).
+DOMAIN_MAX_HOURS: float = 38.0
+
 _CHUNK_SIZE = 1024 * 1024  # 1 MiB
 
 
@@ -71,7 +74,7 @@ def build_orchestrator(
         scheduler=scheduler,
         db_path=db_path,
         blocking_retry=False,
-        max_validation_domain_h=42.8888,
+        max_validation_domain_h=DOMAIN_MAX_HOURS,
     )
 
 
